@@ -3,7 +3,7 @@ import traceback
 import anyio
 from mcp.server import MCPServer
 
-from .crawler import crawl_and_output_to_markdown
+from .crawler import crawl_and_output_to_markdown, CRAWL4AI_MCP_ALLOW_JS_ENV
 from .utils import sanitize_for_display
 
 app = MCPServer("mcp-web-crawler", version="0.1.4")
@@ -23,7 +23,7 @@ async def crawl(
     session_id: str | None = None,
     delay_before_return_html: float | None = None,
 ) -> str:
-    """Crawls a website and saves its content as structured markdown to a file.
+    f"""Crawls a website and saves its content as structured markdown to a file.
 
     ⚠️ PERFORMANCE WARNING: This tool can take from 30 seconds to several minutes
     depending on the site. Heavy/SPA sites (React, Next.js, Mintlify), high
@@ -36,6 +36,7 @@ async def crawl(
     - Use `wait_for_selector` for single-page applications.
     - Lower `max_depth` (1 = single page) when you don't need recursive crawling.
     - Warn the user before launching a crawl that it may take a while.
+    - Custom JavaScript code (js_code) requires {CRAWL4AI_MCP_ALLOW_JS_ENV}=true environment variable.
     """
     try:
         result = await crawl_and_output_to_markdown(
