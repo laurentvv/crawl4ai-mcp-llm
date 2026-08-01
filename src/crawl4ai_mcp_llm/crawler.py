@@ -119,7 +119,7 @@ async def crawl_and_output_to_markdown(
     try:
         async with AsyncWebCrawler() as crawler:
             results = await crawler.arun(start_url, config=config)
-            print(f"Crawled {len(results)} pages in total")
+            print(f"Crawled {len(results)} pages in total", file=sys.stderr)
             
             # Create the parent folder if necessary
             await anyio.Path(os.path.dirname(os.path.abspath(output_file))).mkdir(parents=True, exist_ok=True)
@@ -234,16 +234,16 @@ async def results_to_markdown(results: list, output_path: str) -> dict:
                 text_for_output, error_type = _extract_page_content_and_errors(result)
 
                 if error_type == "missing":
-                    print(f"No content found for {result.url} - Skipped")
+                    print(f"No content found for {result.url} - Skipped", file=sys.stderr)
                     stats["failed_pages"] += 1
                     continue
                 elif error_type in ("404", "403"):
                     # For title errors, original code prints slightly differently
                     title = result.metadata.get("title", "Untitled page") if hasattr(result, "metadata") and result.metadata and result.metadata.get("title") is not None else "Untitled page"
                     if title and ERROR_INDICATORS_REGEX.search(str(title)):
-                        print(f"Page with error title detected and skipped: {result.url}")
+                        print(f"Page with error title detected and skipped: {result.url}", file=sys.stderr)
                     else:
-                        print(f"{error_type} page detected and skipped: {result.url}")
+                        print(f"{error_type} page detected and skipped: {result.url}", file=sys.stderr)
 
                     if error_type == "404":
                         stats["not_found_pages"] += 1
@@ -256,8 +256,8 @@ async def results_to_markdown(results: list, output_path: str) -> dict:
                 stats["successful_pages"] += 1
             
             # Display a summary at the end
-            print(f"Valid pages processed: {stats['successful_pages']}")
-            print(f"Error pages (403/404) skipped: {stats['not_found_pages'] + stats['forbidden_pages']}")
+            print(f"Valid pages processed: {stats['successful_pages']}", file=sys.stderr)
+            print(f"Error pages (403/404) skipped: {stats['not_found_pages'] + stats['forbidden_pages']}", file=sys.stderr)
         
         links = _extract_unique_links(results)
 
