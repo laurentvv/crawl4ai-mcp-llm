@@ -83,7 +83,7 @@ async def crawl(
 
                 content_text = f"\n\n## Extracted Content\n\n{content_text}"
             except Exception as e:
-                print(f"Failed to read content for return: {e}")
+                print(f"Failed to read content for return: {e}", file=sys.stderr)
 
         summary = f"""
 ## Crawl completed successfully
