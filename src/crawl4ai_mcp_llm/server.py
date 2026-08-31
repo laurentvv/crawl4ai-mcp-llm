@@ -6,7 +6,7 @@ from mcp.server import MCPServer
 from .crawler import crawl_and_output_to_markdown, CRAWL4AI_MCP_ALLOW_JS_ENV
 from .utils import sanitize_for_display
 
-app = MCPServer("mcp-web-crawler", version="0.1.4")
+app = MCPServer("mcp-web-crawler", version="0.1.6")
 
 @app.tool()
 async def crawl(

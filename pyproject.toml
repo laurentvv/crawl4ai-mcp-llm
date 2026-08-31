@@ -1,6 +1,6 @@
 [project]
 name = "crawl4ai-mcp-llm"
-version = "0.1.4"
+version = "0.1.6"
 description = "A Model Context Protocol (MCP) server for Crawl4AI"
 readme = "README_PYPI.md"
 requires-python = ">=3.13,<3.14"
