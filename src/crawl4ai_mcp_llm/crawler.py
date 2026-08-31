@@ -41,6 +41,7 @@ def _empty_stats() -> dict:
 async def crawl_and_output_to_markdown(
     start_url: str,
     max_depth: int = 2,
+    max_pages: int | None = None,
     include_external: bool = False,
     verbose: bool = True,
     output_file: str = None,
@@ -92,6 +93,7 @@ async def crawl_and_output_to_markdown(
     config = CrawlerRunConfig(
         deep_crawl_strategy=BFSDeepCrawlStrategy(
             max_depth=max_depth,
+            max_pages=max_pages,
             include_external=include_external,
         ),
         scraping_strategy=LXMLWebScrapingStrategy(),
