@@ -12,6 +12,7 @@ app = MCPServer("mcp-web-crawler", version="0.1.4")
 async def crawl(
     url: str,
     max_depth: int = 2,
+    max_pages: int | None = None,
     include_external: bool = False,
     verbose: bool = True,
     output_file: str | None = None,
@@ -35,6 +36,11 @@ async def crawl(
     - Use `css_selector` to extract only the relevant content (e.g. 'main', 'article').
     - Use `wait_for_selector` for single-page applications.
     - Lower `max_depth` (1 = single page) when you don't need recursive crawling.
+    - Use `max_pages` (e.g. 1) to cap the number of pages crawled. `max_pages=1`
+      fetches exactly one page WITHOUT following any link - the safe way to grab
+      a single doc page, and it preserves `<a>` text in the output (never strip
+      anchors from the DOM to prevent link fan-out: that silently deletes every
+      linked term, e.g. type names in API docs).
     - Warn the user before launching a crawl that it may take a while.
     - Custom JavaScript code (js_code) requires {CRAWL4AI_MCP_ALLOW_JS_ENV}=true environment variable.
     """
@@ -42,6 +48,7 @@ async def crawl(
         result = await crawl_and_output_to_markdown(
             url,
             max_depth=max_depth,
+            max_pages=max_pages,
             include_external=include_external,
             verbose=verbose,
             output_file=output_file,
