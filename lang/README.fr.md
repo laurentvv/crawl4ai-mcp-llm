@@ -60,7 +60,7 @@ Ajoutez ce qui suit au fichier de configuration MCP de votre Assistant IA (par e
 Le crawler utilise Playwright pour gérer le contenu dynamique. Vous devez installer les navigateurs requis après avoir configuré l'outil :
 
 ```bash
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ Utilisation

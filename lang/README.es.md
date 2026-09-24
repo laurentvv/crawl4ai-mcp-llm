@@ -60,7 +60,7 @@ Añade lo siguiente al archivo de configuración MCP de tu asistente de IA (por 
 El rastreador utiliza Playwright para gestionar el contenido dinámico. Debes instalar los navegadores necesarios después de configurar la herramienta:
 
 ```bash
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ Uso

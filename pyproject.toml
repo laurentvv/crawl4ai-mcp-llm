@@ -1,6 +1,6 @@
 [project]
 name = "crawl4ai-mcp-llm"
-version = "0.1.6"
+version = "0.2.0"
 description = "A Model Context Protocol (MCP) server for Crawl4AI"
 readme = "README_PYPI.md"
 license = "MIT"
@@ -39,6 +39,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/crawl4ai_mcp_llm"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "README_PYPI.md", "CHANGELOG.md", "LICENSE", "pyproject.toml", "uv.lock"]
 
 [tool.ruff]
 line-length = 120

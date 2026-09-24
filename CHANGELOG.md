@@ -5,6 +5,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-24
+
 ### Security
 - Only `http`/`https` start URLs are accepted: `file://`, `raw:`, `data:` and other schemes are rejected.
 - Hosts resolving to loopback, private or link-local addresses are rejected unless `CRAWL4AI_MCP_ALLOW_PRIVATE_NETWORKS=true`; links discovered during deep crawls are filtered the same way (by URL, without DNS lookup).

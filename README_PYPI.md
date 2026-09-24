@@ -62,7 +62,7 @@ The crawler uses Playwright to handle dynamic content. Install Chromium once aft
 
 ```bash
 # When running the server with uvx (recommended setup)
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 
 # From a local clone
 uv run playwright install chromium

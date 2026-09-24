@@ -60,7 +60,7 @@
 يستخدم الزاحف Playwright للتعامل مع المحتوى الديناميكي. يجب عليك تثبيت المتصفحات المطلوبة بعد إعداد الأداة:
 
 ```bash
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ الاستخدام

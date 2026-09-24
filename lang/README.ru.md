@@ -60,7 +60,7 @@
 Скрапер использует Playwright для обработки динамического контента. После настройки инструмента необходимо установить требуемые браузеры:
 
 ```bash
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ Использование

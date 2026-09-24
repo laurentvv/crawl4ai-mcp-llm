@@ -60,7 +60,7 @@
 क्रॉलर डायनामिक कंटेंट को संभालने के लिए Playwright का उपयोग करता है। टूल सेटअप करने के बाद आपको आवश्यक ब्राउज़र इंस्टॉल करने होंगे:
 
 ```bash
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ उपयोग

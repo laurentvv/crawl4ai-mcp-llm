@@ -60,7 +60,7 @@
 抓取工具使用 Playwright 来处理动态内容。在配置完成后，你必须安装所需的浏览器：
 
 ```bash
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ 使用方法

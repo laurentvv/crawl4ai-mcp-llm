@@ -60,7 +60,7 @@ Tambahkan berikut ini ke file konfigurasi MCP Asisten AI Anda (misalnya, `cline_
 Perayap menggunakan Playwright untuk menangani konten dinamis. Anda harus menginstal browser yang diperlukan setelah menyiapkan alat:
 
 ```bash
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ Penggunaan

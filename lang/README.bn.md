@@ -60,7 +60,7 @@
 ক্রলারটি গতিশীল কন্টেন্ট হ্যান্ডল করতে Playwright ব্যবহার করে। টুল সেট আপ করার পরে আপনাকে অবশ্যই প্রয়োজনীয় ব্রাউজারগুলি ইনস্টল করতে হবে:
 
 ```bash
-uvx --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ ব্যবহার
