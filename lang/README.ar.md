@@ -4,6 +4,8 @@
   <img src="https://raw.githubusercontent.com/laurentvv/crawl4ai-mcp-llm/main/assets/banner.jpg" alt="Crawl4AI MCP Banner" width="800"/>
 </div>
 
+> ℹ️ [ملف README الإنجليزي](../README.md) هو النسخة المرجعية (متغيرات البيئة، الأمان، التطوير).
+
 أداة قوية للزحف على الويب تتكامل مع مساعدي الذكاء الاصطناعي عبر بروتوكول سياق النموذج (MCP). يتيح هذا المشروع لمساعدي الذكاء الاصطناعي الزحف إلى المواقع الإلكترونية، واستخراج المحتوى الديناميكي، والتنقل عبر الروابط، وحفظ ملفات Markdown المنظمة مباشرة.
 
 ## 📋 المميزات
@@ -58,7 +60,7 @@
 يستخدم الزاحف Playwright للتعامل مع المحتوى الديناميكي. يجب عليك تثبيت المتصفحات المطلوبة بعد إعداد الأداة:
 
 ```bash
-uv run playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ الاستخدام
@@ -80,12 +82,14 @@ uv run playwright install chromium
 | المعلمة | النوع | الوصف | القيمة الافتراضية |
 |-----------|------|-------------|---------------|
 | `url` | string | رابط URL للزحف إليه (مطلوب) | - |
-| `max_depth` | integer | أقصى عمق للزحف | 2 |
+| `max_depth` | integer | عمق الروابط المتبعة (0-5): 0 = صفحة البداية فقط، 1 = روابطها، وهكذا | 2 |
+| `max_pages` | integer | الحد الأقصى لعدد الصفحات المراد زحفها (1-500) | 50 |
 | `include_external` | boolean | تضمين الروابط الخارجية | false |
-| `verbose` | boolean | تمكين المخرجات التفصيلية | true |
 | `wait_for_selector` | string | محدد CSS للانتظار قبل استخراج المحتوى. مفيد لتطبيقات الصفحة الواحدة (SPA). | None |
 | `return_content` | boolean | ما إذا كان سيتم إرجاع المحتوى المستخرج مباشرة في استجابة MCP (مقتطع إلى 50 ألف حرف إذا لزم الأمر). | true |
-| `output_file` | string | مسار ملف المخرجات | يتم إنشاؤه تلقائيًا |
+| `max_content_chars` | integer | الحد الأقصى لعدد أحرف المحتوى المُعاد في الاستجابة | 50000 |
+| `output_file` | string | اسم ملف Markdown، يُحفظ دائمًا داخل مجلد النتائج | يتم إنشاؤه تلقائيًا |
+| `overwrite` | boolean | السماح باستبدال `output_file` موجود | false |
 | `magic` | boolean | تفعيل الوضع السحري لتجاوز الحمايات ضد الروبوتات ومحاكاة متصفح حقيقي | false |
 | `css_selector` | string | محدد CSS محدد لاستخراج العناصر المستهدفة فقط من الصفحة | None |
 | `js_code` | string | كود جافا سكريبت مخصص لتنفيذه على الصفحة قبل الاستخراج | None |

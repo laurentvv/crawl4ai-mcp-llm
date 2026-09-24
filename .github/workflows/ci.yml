@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --python 3.13
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.12", "3.13"]
+        include:
+          - os: windows-latest
+            python: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --python ${{ matrix.python }}
+      - run: uv run pytest --cov --cov-report=term-missing
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv export --frozen --no-dev --no-emit-project --no-hashes --format requirements-txt > requirements.txt
+      # PYSEC-2026-3740: nltk model-path handling, no fixed release yet. nltk is a
+      # transitive crawl4ai dependency and its model APIs are not used here.
+      - run: uvx pip-audit --strict --disable-pip --no-deps -r requirements.txt --ignore-vuln PYSEC-2026-3740
+
+  integration:
+    # Hits real websites with a real browser: run on demand only.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --frozen --python 3.13
+      - run: uv run playwright install --with-deps chromium
+      - run: uv run pytest -m integration

@@ -4,6 +4,8 @@
   <img src="https://raw.githubusercontent.com/laurentvv/crawl4ai-mcp-llm/main/assets/banner.jpg" alt="Crawl4AI MCP Banner" width="800"/>
 </div>
 
+> ℹ️ [अंग्रेज़ी README](../README.md) संदर्भ संस्करण है (पर्यावरण चर, सुरक्षा, विकास)।
+
 एक शक्तिशाली वेब क्रॉलिंग टूल जो MCP (Model Context Protocol) के माध्यम से AI सहायकों के साथ एकीकृत होता है। यह प्रोजेक्ट AI सहायकों को वेबसाइट्स को क्रॉल करने, डायनामिक कंटेंट निकालने, लिंक्स के माध्यम से नेविगेट करने और सीधे संरचित Markdown फ़ाइलों को सहेजने की अनुमति देता है।
 
 ## 📋 विशेषताएँ
@@ -58,7 +60,7 @@
 क्रॉलर डायनामिक कंटेंट को संभालने के लिए Playwright का उपयोग करता है। टूल सेटअप करने के बाद आपको आवश्यक ब्राउज़र इंस्टॉल करने होंगे:
 
 ```bash
-uv run playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ उपयोग
@@ -80,12 +82,14 @@ uv run playwright install chromium
 | पैरामीटर | प्रकार | विवरण | डिफ़ॉल्ट मान |
 |-----------|------|-------------|---------------|
 | `url` | string | क्रॉल करने के लिए URL (आवश्यक) | - |
-| `max_depth` | integer | अधिकतम क्रॉलिंग गहराई | 2 |
+| `max_depth` | integer | अनुसरण करने के लिए लिंक की गहराई (0-5): 0 = केवल प्रारंभिक पृष्ठ, 1 = उसके लिंक, आदि | 2 |
+| `max_pages` | integer | क्रॉल किए जाने वाले पृष्ठों की अधिकतम संख्या (1-500) | 50 |
 | `include_external` | boolean | बाहरी लिंक्स शामिल करें | false |
-| `verbose` | boolean | विस्तृत आउटपुट सक्षम करें | true |
 | `wait_for_selector` | string | कंटेंट निकालने से पहले प्रतीक्षा करने के लिए CSS सिलेक्टर। सिंगल-पेज एप्लिकेशन के लिए उपयोगी। | None |
 | `return_content` | boolean | निकाले गए कंटेंट को सीधे MCP प्रतिक्रिया में लौटाना है या नहीं (आवश्यक होने पर 50k वर्णों तक सीमित)। | true |
-| `output_file` | string | आउटपुट फ़ाइल पथ | स्वचालित रूप से उत्पन्न |
+| `max_content_chars` | integer | प्रतिक्रिया में लौटाए गए सामग्री के अधिकतम वर्ण | 50000 |
+| `output_file` | string | Markdown फ़ाइल का नाम, हमेशा परिणाम निर्देशिका में सहेजा जाता है | स्वचालित रूप से उत्पन्न |
+| `overwrite` | boolean | मौजूदा `output_file` को बदलने की अनुमति दें | false |
 | `magic` | boolean | एंटी-बॉट्स को बायपास करने और वास्तविक ब्राउज़र का अनुकरण करने के लिए मैजिक मोड सक्षम करें | false |
 | `css_selector` | string | पेज से केवल लक्षित तत्व निकालने के लिए विशिष्ट CSS सिलेक्टर | None |
 | `js_code` | string | निष्कर्षण से पहले पेज पर निष्पादित करने के लिए कस्टम JavaScript कोड | None |

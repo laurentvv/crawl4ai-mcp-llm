@@ -41,3 +41,7 @@ Thumbs.db
 # OLD
 .old/desc_stderr.log
 *.log
+
+# Coverage
+.coverage
+htmlcov/

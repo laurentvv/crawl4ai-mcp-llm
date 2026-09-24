@@ -1,124 +1,76 @@
-
-# Mock dependencies
-
-import pytest
 from crawl4ai_mcp_llm.crawler import _extract_unique_links
+
 
 class MockCrawlResult:
     def __init__(self, links=None, has_links_attr=True):
         if has_links_attr:
             self.links = links
 
+
 def test_extract_unique_links_basic():
     results = [
-        MockCrawlResult(links={
-            "internal": [{"href": "https://example.com/a", "text": "A"}],
-            "external": [{"href": "https://google.com", "text": "Google"}]
-        }),
-        MockCrawlResult(links={
-            "internal": [{"href": "https://example.com/b", "text": "B"}],
-            "external": [{"href": "https://github.com", "text": "GitHub"}]
-        })
+        MockCrawlResult(
+            links={
+                "internal": [{"href": "https://example.com/a", "text": "A"}],
+                "external": [{"href": "https://google.com", "text": "Google"}],
+            }
+        ),
+        MockCrawlResult(
+            links={
+                "internal": [{"href": "https://example.com/b", "text": "B"}],
+                "external": [{"href": "https://github.com", "text": "GitHub"}],
+            }
+        ),
     ]
 
     extracted = _extract_unique_links(results)
 
-    assert len(extracted["internal"]) == 2
-    assert len(extracted["external"]) == 2
-    assert extracted["internal"][0]["href"] == "https://example.com/a"
-    assert extracted["internal"][1]["href"] == "https://example.com/b"
-    assert extracted["external"][0]["href"] == "https://google.com"
-    assert extracted["external"][1]["href"] == "https://github.com"
+    assert [link["href"] for link in extracted["internal"]] == ["https://example.com/a", "https://example.com/b"]
+    assert [link["href"] for link in extracted["external"]] == ["https://google.com", "https://github.com"]
 
-def test_extract_unique_links_deduplication():
+
+def test_extract_unique_links_deduplication_keeps_first():
     results = [
-        MockCrawlResult(links={
-            "internal": [{"href": "https://example.com/a", "text": "A1"}],
-            "external": [{"href": "https://google.com", "text": "Google1"}]
-        }),
-        MockCrawlResult(links={
-            "internal": [{"href": "https://example.com/a", "text": "A2"}],
-            "external": [{"href": "https://google.com", "text": "Google2"}]
-        })
+        MockCrawlResult(links={"internal": [{"href": "https://example.com/a", "text": "A1"}]}),
+        MockCrawlResult(links={"internal": [{"href": "https://example.com/a", "text": "A2"}]}),
     ]
 
     extracted = _extract_unique_links(results)
 
-    # Should only have 1 of each because href is the same
-    assert len(extracted["internal"]) == 1
-    assert len(extracted["external"]) == 1
-    assert extracted["internal"][0]["text"] == "A1"
-    assert extracted["external"][0]["text"] == "Google1"
+    assert extracted["internal"] == [{"href": "https://example.com/a", "text": "A1"}]
 
-def test_extract_unique_links_missing_attr():
+
+def test_extract_unique_links_missing_attr_or_not_dict():
     results = [
         MockCrawlResult(has_links_attr=False),
-        MockCrawlResult(links={
-            "internal": [{"href": "https://example.com/a"}]
-        })
-    ]
-
-    extracted = _extract_unique_links(results)
-    assert len(extracted["internal"]) == 1
-    assert extracted["internal"][0]["href"] == "https://example.com/a"
-
-def test_extract_unique_links_not_dict():
-    results = [
         MockCrawlResult(links=["not", "a", "dict"]),
-        MockCrawlResult(links={
-            "internal": [{"href": "https://example.com/a"}]
-        })
+        MockCrawlResult(links={"internal": [{"href": "https://example.com/a"}]}),
     ]
 
     extracted = _extract_unique_links(results)
-    assert len(extracted["internal"]) == 1
-    assert extracted["internal"][0]["href"] == "https://example.com/a"
+
+    assert extracted["internal"] == [{"href": "https://example.com/a"}]
+
 
 def test_extract_unique_links_empty_input():
-    extracted = _extract_unique_links([])
-    assert extracted == {"internal": [], "external": []}
+    assert _extract_unique_links([]) == {"internal": [], "external": []}
 
-def test_extract_unique_links_missing_keys():
+
+def test_extract_unique_links_skips_links_without_href():
+    extracted = _extract_unique_links([MockCrawlResult(links={"internal": [{"text": "No href"}]})])
+    assert extracted["internal"] == []
+
+
+def test_extract_unique_links_ignores_malformed_entries():
     results = [
-        MockCrawlResult(links={
-            "internal": [{"href": "https://example.com/a"}]
-            # external missing
-        }),
-        MockCrawlResult(links={
-            "external": [{"href": "https://google.com"}]
-            # internal missing
-        })
+        MockCrawlResult(
+            links={
+                "internal": "not a list",
+                "external": ["not a dict", {"href": "https://google.com"}],
+            }
+        )
     ]
 
     extracted = _extract_unique_links(results)
-    assert len(extracted["internal"]) == 1
-    assert len(extracted["external"]) == 1
-    assert extracted["internal"][0]["href"] == "https://example.com/a"
-    assert extracted["external"][0]["href"] == "https://google.com"
 
-def test_extract_unique_links_no_href():
-    results = [
-        MockCrawlResult(links={
-            "internal": [{"text": "No href"}]
-        })
-    ]
-
-    extracted = _extract_unique_links(results)
-    assert len(extracted["internal"]) == 0
-
-def test_extract_unique_links_not_a_list():
-    results = [
-        MockCrawlResult(links={
-            "internal": "not a list",
-            "external": [{"href": "https://google.com"}]
-        })
-    ]
-
-    # The current implementation of _extract_unique_links:
-    # for link in result.links[k]:
-    # will raise TypeError if result.links[k] is not iterable (like a string, though a string IS iterable)
-    # but it will crash if it is e.g. an integer.
-    # Actually, if it's a string "not a list", it will iterate over characters and link.get('href') will fail.
-
-    with pytest.raises(Exception): # Exact exception depends on the type
-        _extract_unique_links(results)
+    assert extracted == {"internal": [], "external": [{"href": "https://google.com"}]}
