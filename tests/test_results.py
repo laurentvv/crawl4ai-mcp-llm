@@ -161,6 +161,18 @@ def test_extract_page_content_and_errors_missing():
     assert page == (None, "missing", "net::ERR_NAME_NOT_RESOLVED")
 
 
+def test_missing_page_reason_prefers_network_error():
+    message = (
+        "Unexpected error in _crawl_web at line 778\nError: Failed on navigating ACS-GOTO:\n"
+        "Page.goto: net::ERR_CONNECTION_REFUSED at https://example.com/\nCall log: ..."
+    )
+    result = SimpleNamespace(markdown=None, error_message=message)
+
+    assert _extract_page_content_and_errors(result).reason == (
+        "Page.goto: net::ERR_CONNECTION_REFUSED at https://example.com/"
+    )
+
+
 def test_classify_error_title_ignores_empty_title():
     assert classify_error_title("") is None
 

@@ -4,7 +4,10 @@ import logging
 import math
 import re
 import time
-from collections.abc import AsyncIterator, Iterable
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Literal, NamedTuple, NotRequired, TypedDict
 
 import anyio
@@ -31,6 +34,10 @@ CRAWL4AI_MCP_ALLOW_JS_ENV = ALLOW_JS_ENV
 
 DEFAULT_MAX_CONTENT_CHARS = 50_000
 UNTITLED_PAGE = "Untitled page"
+CANCELLED_MARKER = "\n<!-- Crawl cancelled by the client: the results above are partial. -->\n"
+
+# Awaited with (pages processed so far, url of the last page).
+ProgressCallback = Callable[[int, str], Awaitable[None]]
 
 # A title is treated as an error page only when one of its segments (split on
 # " | ", " - ", " : " ...) is entirely an HTTP error phrase, e.g. "404 Not Found",
@@ -129,7 +136,10 @@ def _short_reason(message: object, max_chars: int = MAX_REASON_CHARS) -> str:
         return "no content"
     # crawl4ai prefixes errors with a generic "Unexpected error in ..." line;
     # the network error (e.g. "Page.goto: net::ERR_...") comes later.
-    reason = next((line for line in lines if "net::" in line or "Error" in line), lines[0])
+    reason = next(
+        (line for line in lines if "net::" in line),
+        next((line for line in lines if "Error" in line), lines[0]),
+    )
     return reason if len(reason) <= max_chars else reason[: max_chars - 3] + "..."
 
 
@@ -226,12 +236,43 @@ async def _close_results(results: Any) -> None:
         logger.debug("Failed to close crawl result stream", exc_info=True)
 
 
+class _NullWriter:
+    """Stand-in for the output file when results are only returned, not saved."""
+
+    async def write(self, data: str) -> int:
+        return len(data)
+
+
+@asynccontextmanager
+async def _open_output(output_path: str | None) -> AsyncIterator[Any]:
+    if output_path is None:
+        yield _NullWriter()
+        return
+    md_file = await anyio.Path(output_path).open("w", encoding="utf-8")
+    try:
+        yield md_file
+    finally:
+        # Closing runs in a worker thread: shield it so a cancelled request still flushes the file.
+        with anyio.CancelScope(shield=True):
+            await md_file.aclose()
+
+
+async def _notify_progress(on_page: ProgressCallback | None, done: int, url: str) -> None:
+    if on_page is None:
+        return
+    try:
+        await on_page(done, url)
+    except Exception:  # noqa: BLE001 - progress is best effort, never fail the crawl for it
+        logger.debug("Progress callback failed", exc_info=True)
+
+
 async def results_to_markdown(
     results: Any,
-    output_path: str,
+    output_path: str | None,
     *,
     max_content_chars: int = DEFAULT_MAX_CONTENT_CHARS,
     deadline: float = math.inf,
+    on_page: ProgressCallback | None = None,
 ) -> CrawlOutcome:
     """
     Write crawl results (a list or an async stream) to a Markdown file.
@@ -239,7 +280,11 @@ async def results_to_markdown(
     Pages are written as they arrive. The first ``max_content_chars`` characters
     are kept in memory so callers do not need to read the file back. When
     ``deadline`` (an ``anyio.current_time()`` value) is reached, the pages
-    already written are kept and the outcome is flagged ``timed_out``.
+    already written are kept and the outcome is flagged ``timed_out``. When the
+    caller is cancelled, a marker is appended so the partial file is recognisable.
+    With ``output_path=None`` nothing is written to disk.
+
+    ``on_page(done, url)`` is awaited after each processed page (kept or skipped).
     """
     stats = _empty_stats()
     skipped: list[SkippedPage] = []
@@ -248,42 +293,54 @@ async def results_to_markdown(
     content_len = 0
     truncated = False
     started = time.monotonic()
+    processed = 0
 
     try:
-        async with await anyio.Path(output_path).open("w", encoding="utf-8") as md_file:
-            with anyio.CancelScope(deadline=deadline) as scope:
-                async for result in _iterate(results):
-                    links.add(result)
-                    url = str(getattr(result, "url", ""))
-                    page = _extract_page_content_and_errors(result)
+        async with _open_output(output_path) as md_file:
+            try:
+                with anyio.CancelScope(deadline=deadline) as scope:
+                    async for result in _iterate(results):
+                        processed += 1
+                        links.add(result)
+                        url = str(getattr(result, "url", ""))
+                        page = _extract_page_content_and_errors(result)
 
-                    if page.error_type == "missing":
-                        logger.info("No content found for %s (%s) - skipped", url, page.reason)
-                        stats["failed_pages"] += 1
-                        skipped.append({"url": url, "reason": page.reason or "no content"})
-                        continue
-                    if page.error_type in ("404", "403"):
-                        logger.info("%s page detected (%s) and skipped: %s", page.error_type, page.reason, url)
-                        if page.error_type == "404":
-                            stats["not_found_pages"] += 1
+                        if page.error_type == "missing":
+                            logger.info("No content found for %s (%s) - skipped", url, page.reason)
+                            stats["failed_pages"] += 1
+                            skipped.append({"url": url, "reason": page.reason or "no content"})
+                        elif page.error_type in ("404", "403"):
+                            logger.info("%s page detected (%s) and skipped: %s", page.error_type, page.reason, url)
+                            if page.error_type == "404":
+                                stats["not_found_pages"] += 1
+                            else:
+                                stats["forbidden_pages"] += 1
+                            skipped.append({"url": url, "reason": f"{page.error_type} ({page.reason})"})
                         else:
-                            stats["forbidden_pages"] += 1
-                        skipped.append({"url": url, "reason": f"{page.error_type} ({page.reason})"})
-                        continue
+                            content = page.content or ""
+                            # Regex cleaning is CPU bound on large pages: keep the event loop free.
+                            md_content = await anyio.to_thread.run_sync(_format_markdown_page, result, content)
+                            await md_file.write(md_content)
+                            stats["successful_pages"] += 1
 
-                    content = page.content or ""
-                    # Regex cleaning is CPU bound on large pages: keep the event loop free.
-                    md_content = await anyio.to_thread.run_sync(_format_markdown_page, result, content)
-                    await md_file.write(md_content)
-                    stats["successful_pages"] += 1
+                            if content_len < max_content_chars:
+                                remaining = max_content_chars - content_len
+                                content_parts.append(md_content[:remaining])
+                                content_len += min(len(md_content), remaining)
+                                truncated = truncated or len(md_content) > remaining
+                            else:
+                                truncated = True
 
-                    if content_len < max_content_chars:
-                        remaining = max_content_chars - content_len
-                        content_parts.append(md_content[:remaining])
-                        content_len += min(len(md_content), remaining)
-                        truncated = truncated or len(md_content) > remaining
-                    else:
-                        truncated = True
+                        await _notify_progress(on_page, processed, url)
+            except anyio.get_cancelled_exc_class():
+                # The client cancelled the request: flag the partial file, release the stream.
+                with anyio.CancelScope(shield=True):
+                    try:
+                        await md_file.write(CANCELLED_MARKER)
+                    except OSError:
+                        logger.debug("Could not mark %s as cancelled", output_path, exc_info=True)
+                    await _close_results(results)
+                raise
 
             if scope.cancelled_caught:
                 logger.warning("Crawl deadline reached, keeping %d page(s)", stats["successful_pages"])
@@ -297,7 +354,7 @@ async def results_to_markdown(
         stats["duration_seconds"] = time.monotonic() - started
         return {
             "error": None,
-            "file_path": str(output_path),
+            "file_path": str(output_path) if output_path is not None else None,
             "stats": stats,
             "links": links.links,
             "skipped": skipped,
@@ -316,7 +373,8 @@ class CrawlerManager:
     """Lazily started ``AsyncWebCrawler`` shared across tool calls.
 
     Reusing one browser avoids a Chromium start-up per call and lets
-    ``session_id`` keep cookies and page state between calls.
+    ``session_id`` keep cookies and page state between calls. Sessions idle for
+    longer than ``Settings.session_ttl`` are closed at the start of the next crawl.
     """
 
     def __init__(self, settings: Settings | None = None) -> None:
@@ -324,6 +382,7 @@ class CrawlerManager:
         self._crawler: AsyncWebCrawler | None = None
         self._lock: anyio.Lock | None = None
         self._limiter: anyio.CapacityLimiter | None = None
+        self._sessions: dict[str, float] = {}
 
     @property
     def settings(self) -> Settings:
@@ -335,6 +394,11 @@ class CrawlerManager:
             self._limiter = anyio.CapacityLimiter(self.settings.max_concurrent_crawls)
         return self._limiter
 
+    @property
+    def sessions(self) -> list[str]:
+        """Session ids currently kept open, oldest activity first."""
+        return sorted(self._sessions, key=self._sessions.__getitem__)
+
     async def get(self) -> AsyncWebCrawler:
         if self._lock is None:
             self._lock = anyio.Lock()
@@ -345,11 +409,37 @@ class CrawlerManager:
                 self._crawler = crawler
             return self._crawler
 
+    def touch_session(self, session_id: str) -> None:
+        self._sessions[session_id] = time.monotonic()
+
+    async def kill_session(self, session_id: str) -> bool:
+        """Close a browser session. Returns whether the session was known."""
+        known = self._sessions.pop(session_id, None) is not None
+        crawler = self._crawler
+        if known and crawler is not None:
+            try:
+                with anyio.CancelScope(shield=True):
+                    await crawler.crawler_strategy.kill_session(session_id)
+            except Exception:  # noqa: BLE001 - the page may already be gone
+                logger.debug("Error while closing session %s", session_id, exc_info=True)
+        return known
+
+    async def expire_idle_sessions(self, ttl: float | None = None) -> list[str]:
+        """Close sessions unused for more than ``ttl`` seconds and return their ids."""
+        ttl = self.settings.session_ttl if ttl is None else ttl
+        now = time.monotonic()
+        expired = [sid for sid, last_used in self._sessions.items() if now - last_used > ttl]
+        for session_id in expired:
+            logger.info("Closing idle browser session %s", session_id)
+            await self.kill_session(session_id)
+        return expired
+
     async def invalidate(self) -> None:
         """Drop the shared crawler (e.g. after a browser crash); restarted on next use."""
         await self.close()
 
     async def close(self) -> None:
+        self._sessions.clear()
         crawler, self._crawler = self._crawler, None
         if crawler is not None:
             try:
@@ -377,17 +467,21 @@ async def crawl_and_output_to_markdown(
     max_content_chars: int = DEFAULT_MAX_CONTENT_CHARS,
     settings: Settings | None = None,
     crawler_manager: CrawlerManager | None = None,
+    write_file: bool = True,
+    on_page: ProgressCallback | None = None,
 ) -> CrawlOutcome:
     """
     Crawl a website and save the results to a Markdown file.
 
     ``max_depth`` follows crawl4ai semantics: 0 fetches only the start page,
-    1 also follows the links found on it, and so on.
+    1 also follows the links found on it, and so on. With ``write_file=False``
+    the content is only returned (``file_path`` is None).
     """
     settings = settings or get_settings()
     if verbose is None:
         verbose = settings.verbose
 
+    output_path: Path | None = None
     try:
         max_depth = int(max_depth)
         if max_depth < 0:
@@ -402,12 +496,13 @@ async def crawl_and_output_to_markdown(
         wait_for = validate_wait_for(wait_for_selector, allow_js=settings.allow_js)
         start_url = await validate_url(start_url, allow_private_networks=settings.allow_private_networks)
 
-        results_dir = settings.results_dir
-        await anyio.Path(results_dir).mkdir(parents=True, exist_ok=True)
-        if output_file:
-            output_path = resolve_output_path(output_file, results_dir, overwrite=overwrite)
-        else:
-            output_path = results_dir / generate_filename_from_url(start_url)
+        if write_file:
+            results_dir = settings.results_dir
+            await anyio.Path(results_dir).mkdir(parents=True, exist_ok=True)
+            if output_file:
+                output_path = resolve_output_path(output_file, results_dir, overwrite=overwrite)
+            else:
+                output_path = results_dir / generate_filename_from_url(start_url)
     except ValidationError as e:
         return _error_outcome(str(e))
     except (TypeError, ValueError) as e:
@@ -439,14 +534,27 @@ async def crawl_and_output_to_markdown(
     if delay_before_return_html is not None:
         config.delay_before_return_html = delay_before_return_html
 
-    timeout = settings.crawl_timeout
+    run = _CrawlRun(
+        start_url=start_url,
+        config=config,
+        output_path=str(output_path) if output_path is not None else None,
+        timeout_seconds=settings.crawl_timeout,
+        max_content_chars=max_content_chars,
+        on_page=on_page,
+    )
     try:
         if crawler_manager is None:
             async with AsyncWebCrawler(config=BrowserConfig(verbose=verbose)) as crawler:
-                return await _run_crawl(crawler, start_url, config, output_path, timeout, max_content_chars)
+                return await run.execute(crawler)
+        await crawler_manager.expire_idle_sessions()
         async with crawler_manager.limiter:
             crawler = await crawler_manager.get()
-            return await _run_crawl(crawler, start_url, config, output_path, timeout, max_content_chars)
+            if session_id:
+                crawler_manager.touch_session(session_id)
+            outcome = await run.execute(crawler)
+            if session_id:
+                crawler_manager.touch_session(session_id)
+            return outcome
     except (OSError, TimeoutError, ConnectionError) as e:
         logger.warning("Crawling error for %s: %s", start_url, e)
         if crawler_manager is not None:
@@ -459,23 +567,31 @@ async def crawl_and_output_to_markdown(
         return _error_outcome(f"Crawling error: {e}")
 
 
-async def _run_crawl(
-    crawler: Any,
-    start_url: str,
-    config: CrawlerRunConfig,
-    output_path: Any,
-    timeout_seconds: float,
-    max_content_chars: int,
-) -> CrawlOutcome:
-    deadline = anyio.current_time() + timeout_seconds
-    with anyio.CancelScope(deadline=deadline) as scope:
-        results = await crawler.arun(start_url, config=config)
-    if scope.cancelled_caught:
-        return _error_outcome(f"Crawl timed out after {timeout_seconds:g} seconds")
+@dataclass(frozen=True)
+class _CrawlRun:
+    start_url: str
+    config: CrawlerRunConfig
+    output_path: str | None
+    timeout_seconds: float
+    max_content_chars: int
+    on_page: ProgressCallback | None
 
-    outcome = await results_to_markdown(
-        results, str(output_path), max_content_chars=max_content_chars, deadline=deadline
-    )
-    if outcome.get("timed_out"):
-        logger.warning("Crawl of %s stopped after %g seconds (partial results kept)", start_url, timeout_seconds)
-    return outcome
+    async def execute(self, crawler: Any) -> CrawlOutcome:
+        deadline = anyio.current_time() + self.timeout_seconds
+        with anyio.CancelScope(deadline=deadline) as scope:
+            results = await crawler.arun(self.start_url, config=self.config)
+        if scope.cancelled_caught:
+            return _error_outcome(f"Crawl timed out after {self.timeout_seconds:g} seconds")
+
+        outcome = await results_to_markdown(
+            results,
+            self.output_path,
+            max_content_chars=self.max_content_chars,
+            deadline=deadline,
+            on_page=self.on_page,
+        )
+        if outcome.get("timed_out"):
+            logger.warning(
+                "Crawl of %s stopped after %g seconds (partial results kept)", self.start_url, self.timeout_seconds
+            )
+        return outcome

@@ -13,13 +13,15 @@ A powerful web crawling tool that integrates with AI assistants via the MCP (Mod
 - Extracts and surfaces internal/external links for AI navigation
 - Website crawling with configurable depth and page limit
 - Detailed crawl result statistics, including the list of skipped pages
+- Live progress notifications during long crawls
+- Saved results exposed as MCP resources (`crawl://results/...`)
 - Error and not found page handling
 - Secure by default: only public http(s) URLs, JavaScript disabled unless you opt in
 - **Advanced Scraping Capabilities**:
   - **Magic Mode**: crawl4ai heuristics that simulate a real browser and help with some anti-bot protections (not a guaranteed bypass)
   - **Targeted Extraction**: Fetch only what you need using CSS selectors
   - **Custom JavaScript** (opt-in): Execute code before extraction (clicks, scrolls, form fills)
-  - **Persistent Sessions**: One browser is shared across calls, so a `session_id` keeps cookies and state for the lifetime of the server
+  - **Persistent Sessions**: One browser is shared across calls, so a `session_id` keeps cookies and state until it is closed (`close_session`) or stays idle too long
   - **SPA Support**: Wait for dynamic CSS selectors or set explicit pre-extraction delays
 
 ## 🚀 MCP Configuration
@@ -79,9 +81,26 @@ Once configured, you can use the crawler by asking your AI assistant to perform 
 - **Anti-bot Heuristics**: "Crawl example.com with magic mode enabled."
 - **Targeted Extraction**: "Crawl the docs site but only extract content matching the `h1, p.lead` CSS selector."
 
-## 🛠️ Available Parameters (MCP Tool)
+## 🧰 Tools and Resources
 
-The `crawl` tool accepts the following parameters:
+| Tool | Purpose |
+|------|---------|
+| `crawl` | Crawl a site (following links up to `max_depth`/`max_pages`), save the result as Markdown and return a summary with the content |
+| `crawl_page` | Fetch exactly one page and return its Markdown, without following links or writing any file (faster for "read this page" requests) |
+| `close_session` | Close a browser session opened with `session_id` (idle sessions are also closed automatically after `CRAWL4AI_MCP_SESSION_TTL`) |
+
+| Resource | Content |
+|----------|---------|
+| `crawl://results` | JSON list of saved results (URI, name, size, date, source URL), newest first |
+| `crawl://results/{path}` | Full Markdown of a saved result, e.g. `crawl://results/crawl_example_com_20260101_120000_ab12cd.md` |
+
+The `crawl` response includes the resource URI of its result: when the returned content is truncated, the assistant can read the complete file through that resource even if it has no access to the server's file system.
+
+**Progress:** `crawl` sends an MCP progress notification after each page. Clients that reset their timeout on progress can use a shorter timeout; otherwise keep a generous one (e.g. 600 s).
+
+## 🛠️ Available Parameters (`crawl` tool)
+
+The `crawl` tool accepts the following parameters (`crawl_page` accepts `url`, `css_selector`, `wait_for_selector`, `magic`, `session_id`, `delay_before_return_html` and `max_content_chars`):
 
 | Parameter | Type | Description | Default Value |
 |-----------|------|-------------|---------------|
@@ -111,6 +130,7 @@ Set these in the `env` section of your MCP configuration:
 | `CRAWL4AI_MCP_ALLOW_PRIVATE_NETWORKS` | Allow crawling `localhost` and private/link-local addresses | `false` |
 | `CRAWL4AI_MCP_CRAWL_TIMEOUT` | Maximum duration of one crawl, in seconds (pages crawled so far are kept) | `300` |
 | `CRAWL4AI_MCP_MAX_CONCURRENT_CRAWLS` | Maximum number of crawls running at the same time | `2` |
+| `CRAWL4AI_MCP_SESSION_TTL` | Seconds after which an unused browser session (`session_id`) is closed | `1800` |
 | `CRAWL4AI_MCP_VERBOSE` | Enable crawl4ai's detailed progress logs (on stderr) | `false` |
 | `CRAWL4AI_MCP_LOG_LEVEL` | Server log level (`DEBUG`, `INFO`, `WARNING`, ...) | `INFO` |
 

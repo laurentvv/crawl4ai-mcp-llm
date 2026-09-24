@@ -29,6 +29,14 @@ def isolated_environment(monkeypatch, results_dir):
     monkeypatch.setattr(security, "resolve_host", fake_resolve_host)
 
 
+class FakeStrategy:
+    def __init__(self):
+        self.killed_sessions = []
+
+    async def kill_session(self, session_id):
+        self.killed_sessions.append(session_id)
+
+
 class FakeCrawler:
     """Async context manager standing in for crawl4ai's AsyncWebCrawler."""
 
@@ -38,6 +46,7 @@ class FakeCrawler:
         self.calls = []
         self.started = 0
         self.closed = 0
+        self.crawler_strategy = FakeStrategy()
 
     async def __aenter__(self):
         return self

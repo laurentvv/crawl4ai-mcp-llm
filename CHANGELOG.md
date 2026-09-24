@@ -33,6 +33,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 - Supported Python versions: 3.12 and 3.13. Unused direct dependencies (`chardet`, `httpx`, `lxml`, `urllib3`) were removed and `crawl4ai>=0.9.2` is required.
 
 ### Added
+- `crawl_page` tool: fetch a single page and return its Markdown without writing a file.
+- `close_session` tool, and automatic closing of browser sessions idle for more than `CRAWL4AI_MCP_SESSION_TTL` seconds (default 1800).
+- MCP progress notifications after each crawled page.
+- Saved results are exposed as MCP resources: `crawl://results` (listing) and `crawl://results/{path}` (content); the `crawl` response links its result.
+- When the client cancels a crawl, the partial result file is flushed and marked as cancelled.
 - CI (lint, type check, tests on Linux and Windows, dependency audit), release workflow with PyPI Trusted Publishing, Dependabot.
 
 ## [0.1.6]

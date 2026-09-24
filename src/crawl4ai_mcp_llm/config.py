@@ -11,10 +11,12 @@ CRAWL_TIMEOUT_ENV = "CRAWL4AI_MCP_CRAWL_TIMEOUT"
 MAX_CONCURRENT_CRAWLS_ENV = "CRAWL4AI_MCP_MAX_CONCURRENT_CRAWLS"
 VERBOSE_ENV = "CRAWL4AI_MCP_VERBOSE"
 LOG_LEVEL_ENV = "CRAWL4AI_MCP_LOG_LEVEL"
+SESSION_TTL_ENV = "CRAWL4AI_MCP_SESSION_TTL"
 
 DEFAULT_RESULTS_DIR = "~/.crawl4ai_mcp_llm/results"
 DEFAULT_CRAWL_TIMEOUT = 300.0
 DEFAULT_MAX_CONCURRENT_CRAWLS = 2
+DEFAULT_SESSION_TTL = 1800.0
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -44,6 +46,7 @@ class Settings:
     max_concurrent_crawls: int
     verbose: bool
     log_level: str
+    session_ttl: float
 
 
 def get_settings() -> Settings:
@@ -61,4 +64,5 @@ def get_settings() -> Settings:
         max_concurrent_crawls=_env_number(MAX_CONCURRENT_CRAWLS_ENV, DEFAULT_MAX_CONCURRENT_CRAWLS, int),
         verbose=_env_bool(VERBOSE_ENV),
         log_level=(os.getenv(LOG_LEVEL_ENV) or "INFO").upper(),
+        session_ttl=_env_number(SESSION_TTL_ENV, DEFAULT_SESSION_TTL, float),
     )

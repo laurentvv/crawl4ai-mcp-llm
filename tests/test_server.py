@@ -37,8 +37,8 @@ def test_app_metadata():
 async def test_tool_is_documented():
     tools = await app.list_tools()
 
-    assert [tool.name for tool in tools] == ["crawl"]
-    tool = tools[0]
+    assert sorted(tool.name for tool in tools) == ["close_session", "crawl", "crawl_page"]
+    tool = next(tool for tool in tools if tool.name == "crawl")
     assert "PERFORMANCE WARNING" in tool.description
     assert "CRAWL4AI_MCP_ALLOW_JS" in tool.description
     assert tool.annotations.open_world_hint is True

@@ -25,7 +25,7 @@
 
 > **Suivi — refactoring appliqué (section 2).** Toutes les tâches de la section 2 sont traitées, à une exception près : `ctx.info()`, remplacé par la liste des pages ignorées dans la réponse du tool, car la capacité de logging MCP est dépréciée. Des précisions accompagnent certaines tâches.
 > Vérifications : 118 tests unitaires (couverture 89 %, seuil 80 %) sous Python 3.12 et 3.13, `ruff check`, `ruff format --check` et `mypy` propres, `pip-audit` propre (une exception documentée). Validé aussi par un test de fumée du serveur stdio via le client MCP, et par un vrai crawl Chromium sur un site local (streaming, 404, réutilisation du navigateur, filtrage `file://`).
-> Les nouvelles fonctionnalités (section 3) restent à faire ; les sous-tâches déjà couvertes par le refactoring sont cochées.
+> **Suivi — nouvelles fonctionnalités (section 3) implémentées.** Progression MCP page par page, annulation propre, sessions de navigateur avec `close_session` et expiration, tool `crawl_page`, ressources `crawl://results` et `crawl://results/{+path}`. 140 tests (couverture 90 %) ; vérifié de bout en bout via le client MCP stdio et un vrai Chromium sur un site local (notifications de progression reçues, lecture de ressource, traversée de chemin bloquée).
 
 ---
 
@@ -108,36 +108,36 @@
 
 ### 3.1 Progression en temps réel et crawl en streaming
 
-- [ ] Ajouter un paramètre `ctx: Context` au tool `crawl` dans `server.py`
-- [x] Passer `stream=True` à `CrawlerRunConfig` et itérer avec `async for result in await crawler.arun(...)` _(réalisé lors du refactoring)_
-- [ ] Appeler `ctx.report_progress(done, total=max_pages, message=url)` à chaque page traitée
-- [x] Écrire chaque page dans le fichier Markdown au fil de l'eau (refonte de `results_to_markdown` en consommateur incrémental) _(réalisé lors du refactoring)_
-- [ ] Gérer l'annulation côté client (`anyio.get_cancelled_exc_class()`) en finalisant proprement le fichier partiel
-- [ ] Tests : faux crawler émettant un générateur asynchrone + vérification des appels `report_progress`
-- [ ] Documenter dans le README que le timeout client peut être réduit si le client gère la progression
+- [x] Ajouter un paramètre `ctx: Context` au tool `crawl` dans `server.py`
+- [x] Passer `stream=True` à `CrawlerRunConfig` et itérer avec `async for result in await crawler.arun(...)`
+- [x] Appeler `ctx.report_progress(done, total=max_pages, message=url)` à chaque page traitée
+- [x] Écrire chaque page dans le fichier Markdown au fil de l'eau (refonte de `results_to_markdown` en consommateur incrémental)
+- [x] Gérer l'annulation côté client (`anyio.get_cancelled_exc_class()`) en finalisant proprement le fichier partiel — La fermeture du fichier est protégée contre l'annulation (sinon le contenu n'était jamais écrit sur disque) et un marqueur signale le résultat partiel.
+- [x] Tests : faux crawler émettant un générateur asynchrone + vérification des appels `report_progress`
+- [x] Documenter dans le README que le timeout client peut être réduit si le client gère la progression
 
 **Approche technique**
 Le principal irritant documenté du projet (docstring et README) est la durée des crawls (« 30 s à plusieurs minutes », timeout de 600 s conseillé). `MCPServer` 2.0 fournit déjà `Context.report_progress()` ; beaucoup de clients réarment leur timeout à chaque notification de progression. crawl4ai supporte nativement `stream=True` avec `BFSDeepCrawlStrategy`, ce qui supprime aussi l'accumulation de tous les résultats en mémoire. La logique de `results_to_markdown` devient une boucle `async for` qui réutilise `_extract_page_content_and_errors` et `_format_markdown_page` sans changement. Écarté : un mécanisme maison de polling (`start_crawl` / `get_status`), plus complexe et redondant avec le protocole MCP.
 
 ### 3.2 Crawler partagé via `lifespan` + tool de gestion des sessions
 
-- [x] Définir un `lifespan` asynchrone dans `server.py` qui instancie un `AsyncWebCrawler` (via `BrowserConfig`) et le ferme proprement _(réalisé lors du refactoring)_
-- [ ] Exposer le crawler au tool via `ctx.request_context.lifespan_context` _(le refactoring utilise une instance `CrawlerManager` de module dont le `lifespan` gère la fermeture ; à migrer si plusieurs instances de serveur coexistent)_
-- [ ] Ajouter un tool `close_session(session_id)` appelant `crawler.crawler_strategy.kill_session()`
-- [ ] Ajouter une expiration des sessions inactives (TTL configurable) pour libérer les onglets
-- [x] Protéger l'accès concurrent par un `anyio.CapacityLimiter` _(réalisé lors du refactoring)_
-- [x] Tests : vérifier qu'un seul navigateur est démarré pour deux appels consécutifs et que `session_id` est bien réutilisé _(réalisé lors du refactoring)_
+- [x] Définir un `lifespan` asynchrone dans `server.py` qui instancie un `AsyncWebCrawler` (via `BrowserConfig`) et le ferme proprement
+- [x] Exposer le crawler au tool via `ctx.request_context.lifespan_context` — `_manager(ctx)` lit l'instance dans `ctx.request_context.lifespan_context` (repli sur l'instance du module hors requête, p. ex. dans les tests).
+- [x] Ajouter un tool `close_session(session_id)` appelant `crawler.crawler_strategy.kill_session()`
+- [x] Ajouter une expiration des sessions inactives (TTL configurable) pour libérer les onglets — Expiration paresseuse (vérifiée au début de chaque crawl), sans tâche de fond ; `CRAWL4AI_MCP_SESSION_TTL`, 1800 s par défaut.
+- [x] Protéger l'accès concurrent par un `anyio.CapacityLimiter`
+- [x] Tests : vérifier qu'un seul navigateur est démarré pour deux appels consécutifs et que `session_id` est bien réutilisé
 
 **Approche technique**
 Le README promet des « Persistent Sessions » alors que `crawler.py` recrée le navigateur à chaque appel, ce qui annule `session_id` et coûte plusieurs secondes de démarrage Chromium. Le paramètre `lifespan` de `MCPServer` est le point d'extension idiomatique : une ressource longue durée partagée entre appels, fermée à l'arrêt du process stdio. crawl4ai gère déjà les sessions par `session_id` dans son `browser_manager` ; il suffit de conserver l'instance. Le démarrage paresseux (au premier appel) est préférable à un démarrage au boot pour ne pas ralentir `initialize` côté client. Écarté : un pool externe (serveur Playwright distant), disproportionné pour un serveur MCP local.
 
 ### 3.3 Exposition des résultats en ressources MCP + tool `crawl_page` léger
 
-- [ ] Déclarer une ressource template `crawl://results/{filename}` renvoyant un fichier du dossier de résultats (validé par `is_safe_path`)
-- [ ] Déclarer une ressource `crawl://results` listant les fichiers (nom, URL source, date, taille)
-- [ ] Ajouter un tool `crawl_page(url, css_selector=None)` : une seule page (`max_depth=0`), sans écriture disque, contenu renvoyé directement
-- [ ] Réduire la réponse de `crawl` à un résumé + URI de ressource quand le contenu dépasse la limite, au lieu de tronquer
-- [ ] Tests : lecture de ressource, rejet de traversée de chemin (`../`), `crawl_page` avec crawler simulé
+- [x] Déclarer une ressource template `crawl://results/{filename}` renvoyant un fichier du dossier de résultats (validé par `is_safe_path`)
+- [x] Déclarer une ressource `crawl://results` listant les fichiers (nom, URL source, date, taille)
+- [x] Ajouter un tool `crawl_page(url, css_selector=None)` : une seule page (`max_depth=0`), sans écriture disque, contenu renvoyé directement
+- [x] Réduire la réponse de `crawl` à un résumé + URI de ressource quand le contenu dépasse la limite, au lieu de tronquer — Variante retenue : la réponse garde un aperçu tronqué **et** indique l'URI de ressource, pour rester utile aux clients qui ne lisent pas les ressources.
+- [x] Tests : lecture de ressource, rejet de traversée de chemin (`../`), `crawl_page` avec crawler simulé
 
 **Approche technique**
 Aujourd'hui le contenu est tronqué à 50 000 caractères et le reste n'est accessible qu'en lisant le fichier hors MCP, ce qui échoue quand le client n'a pas accès au système de fichiers du serveur. Les ressources MCP (`@app.resource`) sont le mécanisme prévu pour exposer des documents volumineux que le client charge à la demande ; elles réutilisent `get_results_directory()` et `is_safe_path()` existants. Le tool `crawl_page` couvre le cas le plus fréquent (« lis cette page ») avec un contrat simple, ce qui limite les erreurs du LLM sur `max_depth`/`max_pages` constatées dans la docstring actuelle. Écarté : renvoyer le contenu complet paginé via un paramètre `offset`, moins naturel que les ressources et plus coûteux en appels de tool.

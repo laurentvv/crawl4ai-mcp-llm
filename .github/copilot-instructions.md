@@ -4,10 +4,11 @@ This repository is an MCP (Model Context Protocol) server that exposes Crawl4AI
 web crawling over stdio. Keep changes small and idiomatic.
 
 ## Layout
-- `src/crawl4ai_mcp_llm/server.py` — MCP tool definition (`crawl`), response formatting, shared-browser lifespan.
+- `src/crawl4ai_mcp_llm/server.py` — MCP tools (`crawl`, `crawl_page`, `close_session`), `crawl://results` resources, response formatting, shared-browser lifespan.
 - `src/crawl4ai_mcp_llm/crawler.py` — crawl orchestration (crawl4ai config, streaming, timeouts, stats).
 - `src/crawl4ai_mcp_llm/security.py` — URL / output path / wait condition validation.
 - `src/crawl4ai_mcp_llm/markdown.py` — Markdown cleaning and page formatting.
+- `src/crawl4ai_mcp_llm/results.py` — listing and reading saved results (resource backend).
 - `src/crawl4ai_mcp_llm/config.py` — settings read from `CRAWL4AI_*` environment variables.
 
 ## Rules
