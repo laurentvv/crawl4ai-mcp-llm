@@ -5,6 +5,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+### Documentation
+- The recommended `uvx` setup now uses `crawl4ai-mcp-llm@latest`: without it, `uvx` keeps running the version it cached first. Added the Claude Code setup command.
+
 ## [0.2.1] - 2026-09-24
 
 ### Fixed

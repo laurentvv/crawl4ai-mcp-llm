@@ -31,7 +31,7 @@ A powerful web crawling tool that integrates with AI assistants via the MCP (Mod
 
 ## 🚀 MCP Configuration
 
-The simplest and recommended way to use this tool is via `uvx`, which automatically fetches and runs the latest published version from PyPI.
+The simplest and recommended way to use this tool is via `uvx`. The `@latest` suffix makes `uvx` check PyPI at each start and run the newest published version (without it, `uvx` keeps reusing the version it cached the first time).
 
 ### Prerequisites
 
@@ -53,7 +53,7 @@ Add the following to your AI Assistant's MCP configuration file (e.g., `cline_mc
       "args": [
         "--python",
         "3.13",
-        "crawl4ai-mcp-llm"
+        "crawl4ai-mcp-llm@latest"
       ],
       "disabled": false,
       "autoApprove": [],
@@ -85,13 +85,19 @@ Add the following to your AI Assistant's MCP configuration file (e.g., `cline_mc
 }
 ```
 
+**Claude Code:**
+
+```bash
+claude mcp add crawl -s user -- uvx --python 3.13 crawl4ai-mcp-llm@latest
+```
+
 ### Important: Browser Installation
 
 The crawler uses Playwright to handle dynamic content. Install Chromium once after setting up the tool:
 
 ```bash
 # When running the server with uvx (recommended setup)
-uvx --python 3.13 --from crawl4ai-mcp-llm playwright install chromium
+uvx --python 3.13 --from crawl4ai-mcp-llm@latest playwright install chromium
 
 # From a local clone
 uv run playwright install chromium
