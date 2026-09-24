@@ -13,7 +13,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen --python 3.13
       - run: uv run ruff check .
@@ -31,7 +31,7 @@ jobs:
           - os: windows-latest
             python: "3.13"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen --python ${{ matrix.python }}
       - run: uv run pytest --cov --cov-report=term-missing
@@ -39,7 +39,7 @@ jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - run: uv export --frozen --no-dev --no-emit-project --no-hashes --format requirements-txt > requirements.txt
       # PYSEC-2026-3740: nltk model-path handling, no fixed release yet. nltk is a
@@ -51,7 +51,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --frozen --python 3.13
       - run: uv run playwright install --with-deps chromium
