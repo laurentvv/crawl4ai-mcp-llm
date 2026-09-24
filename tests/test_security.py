@@ -25,6 +25,17 @@ def test_is_safe_path(tmp_path):
         assert not is_safe_path(path, base_dir), path
 
 
+def test_is_safe_path_other_drive(tmp_path, monkeypatch):
+    def commonpath_across_drives(paths):
+        raise ValueError("Paths don't have the same drive")
+
+    monkeypatch.setattr(os.path, "commonpath", commonpath_across_drives)
+
+    assert not is_safe_path(Path("D:/etc/passwd"), tmp_path)
+    with pytest.raises(ValidationError):
+        resolve_output_path("D:/etc/passwd.md", tmp_path)
+
+
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks not supported")
 def test_is_safe_path_rejects_symlink_escape(tmp_path):
     base_dir = tmp_path / "results"

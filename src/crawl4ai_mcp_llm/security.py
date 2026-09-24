@@ -141,7 +141,11 @@ def is_safe_path(path: str | os.PathLike[str], base_dir: str | os.PathLike[str])
     """Check that ``path`` stays inside ``base_dir`` once symlinks and ``..`` are resolved."""
     abs_path = os.path.realpath(path)
     abs_base = os.path.realpath(base_dir)
-    return os.path.commonpath([abs_path, abs_base]) == abs_base
+    try:
+        return os.path.commonpath([abs_path, abs_base]) == abs_base
+    except ValueError:
+        # Windows: paths on different drives have no common path.
+        return False
 
 
 def sanitize_filename(name: str) -> str:
