@@ -195,7 +195,7 @@ async def test_crawl_page_tool(monkeypatch, fake_crawler, results_dir):
     assert "<untrusted-web-content>" in text and "# Page 1" in text
     ((url, config),) = fake_crawler.calls
     assert config.deep_crawl_strategy.max_depth == 0
-    assert config.deep_crawl_strategy.max_pages == 1
+    assert config.deep_crawl_strategy.max_pages == 2  # one more than asked, see crawl_and_output_to_markdown
     assert config.css_selector == "main"
     assert not results_dir.exists() or not any(results_dir.iterdir())
 
@@ -292,3 +292,20 @@ def test_summary_links_the_result_resource(results_dir):
     assert "- Resource: crawl://results/crawl.md" in text
     assert "read the resource crawl://results/crawl.md for the full text" in text
     assert result_uri("/elsewhere/file.md", results_dir) is None
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("max_pages", [1, 2])
+async def test_crawl_returns_exactly_max_pages(fake_crawler, max_pages):
+    failed = SimpleNamespace(url="https://example.com/broken", markdown=None, success=False, error_message="boom")
+    pages = [SimpleNamespace(**vars(make_result(i)), success=True) for i in range(1, 4)]
+    fake_crawler.results = [failed, *pages]
+
+    result = await crawl_and_output_to_markdown(
+        "https://example.com", max_depth=1, max_pages=max_pages, write_file=False
+    )
+
+    assert result["error"] is None
+    assert result["stats"]["successful_pages"] == max_pages
+    assert f"# Page {max_pages}" in result["content"]
+    assert f"# Page {max_pages + 1}" not in result["content"]

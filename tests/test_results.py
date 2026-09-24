@@ -216,7 +216,7 @@ async def test_crawl_and_output_to_markdown_passes_parameters(fake_crawler, monk
     assert config.delay_before_return_html == 2.5
     assert config.wait_for == "#app"
     assert config.deep_crawl_strategy.max_depth == 0
-    assert config.deep_crawl_strategy.max_pages == 3
+    assert config.deep_crawl_strategy.max_pages == 4  # one more than asked, see crawl_and_output_to_markdown
 
 
 @pytest.mark.anyio

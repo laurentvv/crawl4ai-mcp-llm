@@ -225,6 +225,20 @@ async def _iterate(results: Any) -> AsyncIterator[Any]:
             yield result
 
 
+async def _limit_successes(results: Any, max_pages: int) -> AsyncIterator[Any]:
+    """Stop after ``max_pages`` successful results, counting like crawl4ai does."""
+    successes = 0
+    try:
+        async for result in _iterate(results):
+            yield result
+            if getattr(result, "success", False):
+                successes += 1
+                if successes >= max_pages:
+                    return
+    finally:
+        await _close_results(results)
+
+
 async def _close_results(results: Any) -> None:
     aclose = getattr(results, "aclose", None)
     if aclose is None:
@@ -512,7 +526,10 @@ async def crawl_and_output_to_markdown(
 
     strategy_kwargs: dict[str, Any] = {"max_depth": max_depth, "include_external": include_external}
     if max_pages is not None:
-        strategy_kwargs["max_pages"] = int(max_pages)
+        max_pages = int(max_pages)
+        # crawl4ai's streaming BFS stops *before* yielding the page that reaches
+        # max_pages (max_pages=1 returns nothing): ask for one more, cap it ourselves.
+        strategy_kwargs["max_pages"] = max_pages + 1
     config = CrawlerRunConfig(
         deep_crawl_strategy=BFSDeepCrawlStrategy(
             filter_chain=FilterChain([SafeURLFilter(settings.allow_private_networks)]),
@@ -541,6 +558,7 @@ async def crawl_and_output_to_markdown(
         timeout_seconds=settings.crawl_timeout,
         max_content_chars=max_content_chars,
         on_page=on_page,
+        max_pages=max_pages,
     )
     try:
         if crawler_manager is None:
@@ -575,6 +593,7 @@ class _CrawlRun:
     timeout_seconds: float
     max_content_chars: int
     on_page: ProgressCallback | None
+    max_pages: int | None = None
 
     async def execute(self, crawler: Any) -> CrawlOutcome:
         deadline = anyio.current_time() + self.timeout_seconds
@@ -582,6 +601,8 @@ class _CrawlRun:
             results = await crawler.arun(self.start_url, config=self.config)
         if scope.cancelled_caught:
             return _error_outcome(f"Crawl timed out after {self.timeout_seconds:g} seconds")
+        if self.max_pages is not None:
+            results = _limit_successes(results, self.max_pages)
 
         outcome = await results_to_markdown(
             results,

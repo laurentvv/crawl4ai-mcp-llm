@@ -5,6 +5,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-24
+
+### Fixed
+- `crawl_page` returned no content, and `crawl` returned one page fewer than `max_pages`: crawl4ai's streaming BFS stops before yielding the page that reaches its `max_pages` limit. The server now asks crawl4ai for one extra page and stops at exactly `max_pages` itself.
+
 ## [0.2.0] - 2026-09-24
 
 ### Security
