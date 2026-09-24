@@ -11,7 +11,7 @@ from .security import is_safe_path
 
 RESULTS_URI = "crawl://results"
 RESULT_URI_PREFIX = f"{RESULTS_URI}/"
-_SOURCE_URL_REGEX = re.compile(r"^## URL\n(\S+)", re.MULTILINE)
+_SOURCE_URL_REGEX = re.compile(r"^## URL\r?\n(\S+)", re.MULTILINE)
 _HEADER_BYTES = 4096
 
 

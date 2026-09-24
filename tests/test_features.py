@@ -230,6 +230,16 @@ async def test_list_results(saved_results):
 
 
 @pytest.mark.anyio
+async def test_list_results_reads_windows_line_endings(results_dir):
+    results_dir.mkdir(parents=True)
+    (results_dir / "crlf.md").write_bytes(b"\r\n# C\r\n\r\n## URL\r\nhttps://c.example/\r\n")
+
+    (entry,) = await list_results(results_dir)
+
+    assert entry["source_url"] == "https://c.example/"
+
+
+@pytest.mark.anyio
 async def test_list_results_missing_dir(tmp_path):
     assert await list_results(tmp_path / "nope") == []
 
