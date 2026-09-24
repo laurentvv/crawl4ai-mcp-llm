@@ -4,6 +4,8 @@
   <img src="https://raw.githubusercontent.com/laurentvv/crawl4ai-mcp-llm/main/assets/banner.jpg" alt="Crawl4AI MCP Banner" width="800"/>
 </div>
 
+> ℹ️ O [README em inglês](../README.md) é a versão de referência (variáveis de ambiente, segurança, desenvolvimento).
+
 Uma poderosa ferramenta de rastreamento web que se integra com assistentes de IA através do MCP (Model Context Protocol). Este projeto permite que assistentes de IA rastreiem sites, extraiam conteúdo dinâmico, naveguem através de links e salvem arquivos Markdown estruturados diretamente.
 
 ## 📋 Funcionalidades
@@ -58,7 +60,7 @@ Adicione o seguinte ao arquivo de configuração MCP do seu assistente de IA (ex
 O rastreador usa Playwright para lidar com conteúdo dinâmico. Você deve instalar os navegadores necessários após configurar a ferramenta:
 
 ```bash
-uv run playwright install chromium
+uvx --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ Uso
@@ -80,12 +82,14 @@ A ferramenta `crawl` aceita os seguintes parâmetros:
 | Parâmetro | Tipo | Descrição | Valor Padrão |
 |-----------|------|-------------|--------------|
 | `url` | string | URL para rastrear (obrigatório) | - |
-| `max_depth` | integer | Profundidade máxima de rastreamento | 2 |
+| `max_depth` | integer | Profundidade de links a seguir (0-5): 0 = apenas a página inicial, 1 = os seus links, etc. | 2 |
+| `max_pages` | integer | Número máximo de páginas a rastrear (1-500) | 50 |
 | `include_external` | boolean | Incluir links externos | false |
-| `verbose` | boolean | Habilitar saída detalhada | true |
 | `wait_for_selector` | string | Seletor CSS a aguardar antes de extrair o conteúdo. Útil para aplicações de página única (SPA). | None |
 | `return_content` | boolean | Se deve retornar o conteúdo extraído diretamente na resposta MCP (truncado para 50k caracteres se necessário). | true |
-| `output_file` | string | Caminho do arquivo de saída | gerado automaticamente |
+| `max_content_chars` | integer | Número máximo de caracteres de conteúdo retornados na resposta | 50000 |
+| `output_file` | string | Nome do arquivo Markdown, sempre salvo no diretório de resultados | gerado automaticamente |
+| `overwrite` | boolean | Permitir substituir um `output_file` existente | false |
 | `magic` | boolean | Habilitar modo mágico para contornar anti-bots e simular um navegador real | false |
 | `css_selector` | string | Seletor CSS específico para extrair apenas elementos direcionados da página | None |
 | `js_code` | string | Código JavaScript personalizado para executar na página antes da extração | None |

@@ -1,63 +1,39 @@
-import os
-import sys
-import unittest
-from unittest.mock import patch
+import pytest
 
-# Mock out heavy dependencies that might not be available or fail to load
-
-
-# Now we can import from our module safely
-sys.path.append(os.path.join(os.getcwd(), "src"))
 from crawl4ai_mcp_llm.crawler import crawl_and_output_to_markdown
 
-class TestSecurityJS(unittest.IsolatedAsyncioTestCase):
-    async def test_js_code_blocked_by_default(self):
-        # Ensure environment variable is not set
-        if "CRAWL4AI_MCP_ALLOW_JS" in os.environ:
-            del os.environ["CRAWL4AI_MCP_ALLOW_JS"]
 
-        result = await crawl_and_output_to_markdown(
-            "https://example.com",
-            js_code="console.log('malicious code')"
-        )
+@pytest.mark.anyio
+@pytest.mark.parametrize("env_value", [None, "false"])
+async def test_js_code_blocked(fake_crawler, monkeypatch, env_value):
+    if env_value is not None:
+        monkeypatch.setenv("CRAWL4AI_MCP_ALLOW_JS", env_value)
 
-        self.assertIn("error", result)
-        self.assertIn("Custom JavaScript execution is disabled", result["error"])
-        self.assertIsNone(result["file_path"])
-        self.assertEqual(result["stats"]["successful_pages"], 0)
+    result = await crawl_and_output_to_markdown("https://example.com", js_code="console.log('malicious code')")
 
-    async def test_js_code_blocked_when_explicitly_false(self):
-        with patch.dict(os.environ, {"CRAWL4AI_MCP_ALLOW_JS": "false"}):
-            result = await crawl_and_output_to_markdown(
-                "https://example.com",
-                js_code="console.log('malicious code')"
-            )
+    assert "Custom JavaScript execution is disabled" in result["error"]
+    assert result["file_path"] is None
+    assert fake_crawler.calls == []
 
-            self.assertIn("error", result)
-            self.assertIn("Custom JavaScript execution is disabled", result["error"])
 
-    @patch("crawl4ai_mcp_llm.crawler.AsyncWebCrawler")
-    @patch("crawl4ai_mcp_llm.crawler.results_to_markdown")
-    async def test_js_code_allowed_when_env_set_to_true(self, mock_results_to_markdown, mock_crawler_class):
-        with patch.dict(os.environ, {"CRAWL4AI_MCP_ALLOW_JS": "true"}):
-            # Setup mocks for successful crawl
-            mock_crawler = mock_crawler_class.return_value.__aenter__.return_value
-            mock_crawler.arun.return_value = []
-            mock_results_to_markdown.return_value = {"error": None, "file_path": "test.md", "stats": {"successful_pages": 1}}
+@pytest.mark.anyio
+@pytest.mark.parametrize("wait_for", ["js:() => true", "() => window.ready", "function(){return 1}", "x => x"])
+async def test_js_wait_for_blocked(fake_crawler, wait_for):
+    result = await crawl_and_output_to_markdown("https://example.com", wait_for_selector=wait_for)
 
-            result = await crawl_and_output_to_markdown(
-                "https://example.com",
-                js_code="console.log('legit code')"
-            )
+    assert "JavaScript wait conditions are disabled" in result["error"]
+    assert fake_crawler.calls == []
 
-            # Should not return the security error
-            if result.get("error"):
-                self.assertNotIn("Custom JavaScript execution is disabled", result["error"])
 
-            # Verify that js_code was passed to CrawlerRunConfig (implicitly via arun call)
-            args, kwargs = mock_crawler.arun.call_args
-            config = kwargs.get("config")
-            self.assertEqual(config.js_code, "console.log('legit code')")
+@pytest.mark.anyio
+async def test_js_allowed_when_env_set_to_true(fake_crawler, monkeypatch):
+    monkeypatch.setenv("CRAWL4AI_MCP_ALLOW_JS", "true")
 
-if __name__ == "__main__":
-    unittest.main()
+    result = await crawl_and_output_to_markdown(
+        "https://example.com", js_code="console.log('legit code')", wait_for_selector="js:() => true"
+    )
+
+    assert result["error"] is None
+    config = fake_crawler.calls[0][1]
+    assert config.js_code == "console.log('legit code')"
+    assert config.wait_for == "js:() => true"

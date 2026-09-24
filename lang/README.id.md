@@ -4,6 +4,8 @@
   <img src="https://raw.githubusercontent.com/laurentvv/crawl4ai-mcp-llm/main/assets/banner.jpg" alt="Crawl4AI MCP Banner" width="800"/>
 </div>
 
+> ℹ️ [README bahasa Inggris](../README.md) adalah versi acuan (variabel lingkungan, keamanan, pengembangan).
+
 Alat perayapan web (web crawling) canggih yang terintegrasi dengan asisten AI melalui MCP (Model Context Protocol). Proyek ini memungkinkan asisten AI untuk merayapi situs web, mengekstrak konten dinamis, menavigasi melalui tautan, dan menyimpan file Markdown terstruktur secara langsung.
 
 ## 📋 Fitur
@@ -58,7 +60,7 @@ Tambahkan berikut ini ke file konfigurasi MCP Asisten AI Anda (misalnya, `cline_
 Perayap menggunakan Playwright untuk menangani konten dinamis. Anda harus menginstal browser yang diperlukan setelah menyiapkan alat:
 
 ```bash
-uv run playwright install chromium
+uvx --from crawl4ai-mcp-llm playwright install chromium
 ```
 
 ## 🖥️ Penggunaan
@@ -80,12 +82,14 @@ Alat `crawl` menerima parameter berikut:
 | Parameter | Tipe | Deskripsi | Nilai Default |
 |-----------|------|-------------|---------------|
 | `url` | string | URL untuk dirayapi (diperlukan) | - |
-| `max_depth` | integer | Kedalaman perayapan maksimum | 2 |
+| `max_depth` | integer | Kedalaman tautan yang diikuti (0-5): 0 = hanya halaman awal, 1 = tautan-tautannya, dst. | 2 |
+| `max_pages` | integer | Jumlah maksimum halaman yang di-crawl (1-500) | 50 |
 | `include_external` | boolean | Sertakan tautan eksternal | false |
-| `verbose` | boolean | Aktifkan output mendalam | true |
 | `wait_for_selector` | string | Pemilih CSS untuk ditunggu sebelum mengekstrak konten. Berguna untuk aplikasi satu halaman (SPA). | None |
 | `return_content` | boolean | Apakah akan mengembalikan konten yang diekstrak langsung dalam respons MCP (dipotong menjadi 50rb karakter jika perlu). | true |
-| `output_file` | string | Jalur file output | dibuat secara otomatis |
+| `max_content_chars` | integer | Jumlah maksimum karakter konten yang dikembalikan dalam respons | 50000 |
+| `output_file` | string | Nama file Markdown, selalu disimpan di direktori hasil | dibuat secara otomatis |
+| `overwrite` | boolean | Izinkan menimpa `output_file` yang sudah ada | false |
 | `magic` | boolean | Aktifkan mode ajaib untuk melewati anti-bot dan mensimulasikan browser sebenarnya | false |
 | `css_selector` | string | Pemilih CSS spesifik untuk mengekstrak hanya elemen yang ditargetkan dari halaman | None |
 | `js_code` | string | Kode JavaScript kustom untuk dijalankan pada halaman sebelum ekstraksi | None |
