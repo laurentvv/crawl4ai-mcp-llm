@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uv sync --frozen --python 3.13
       - run: uv run ruff check .
       - run: uv run ruff format --check .
@@ -32,7 +32,7 @@ jobs:
             python: "3.13"
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uv sync --frozen --python ${{ matrix.python }}
       - run: uv run pytest --cov --cov-report=term-missing
 
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uv export --frozen --no-dev --no-emit-project --no-hashes --format requirements-txt > requirements.txt
       # PYSEC-2026-3740: nltk model-path handling, no fixed release yet. nltk is a
       # transitive crawl4ai dependency and its model APIs are not used here.
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - run: uv sync --frozen --python 3.13
       - run: uv run playwright install --with-deps chromium
       - run: uv run pytest -m integration
