@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "skills": {
+    "docs-fishing": {
+      "source": "(authored)",
+      "ref": "2026-10-02",
+      "files": {
+        "SKILL.md": "0509cb91550025ff59d36efdf500fe8d3bac90f6a74a583e029f947e089e7c0c"
+      }
+    },
+    "using-superpowers": {
+      "source": "obra/superpowers",
+      "ref": "8ca22dba9a94f28898bbce59f2537ff4d87c747d",
+      "files": {
+        "SKILL.md": "82c5c8866ad7f5dd4440ce66bd7806ba48a2f13771beae5cf112e53f08fe36ba",
+        "references/antigravity-tools.md": "4880f6de3da4e32f9659ebe7a72b9e0ebfff04e028c2ed96173f86d0387a04c0",
+        "references/claude-code-tools.md": "21479a3fee27448cab8748a3b5687e53bb257883bda9c070426f9a1ab5cebf1b",
+        "references/codex-tools.md": "1a38ad9b188c393052f58d95657a1c35ea6aafc8b5a27f198f3922912f70bbe7",
+        "references/gemini-tools.md": "62b9157bcb0ee3c6784e3d0da0798ddfa5872f9e0c34bea48f3079dabea71965",
+        "references/hermes-tools.md": "e2185c976a3c87503910e05e2aea58cc89bc8e569bb624b93df9958ac47a9190",
+        "references/muse-tools.md": "5a1da5c575fe18456ca71cd47ebfd8a38c745f8d82a67fe64d5b83080000eeb3",
+        "references/pi-tools.md": "703dbc83d23ecab9c6f388460c38abc482e9dee2fe6772a8c7a255152ad3a4d5"
+      }
+    }
+  }
+}
