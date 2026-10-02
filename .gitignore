@@ -45,3 +45,6 @@ Thumbs.db
 # Coverage
 .coverage
 htmlcov/
+
+# Agent scratch area (docs-fishing snapshots, local audit artifacts)
+scratch/
