@@ -1,37 +1,34 @@
 ---
 name: explainer
-description: Turn a dense result, system, error or architecture into the cheapest artifact the user can actually process - an escalation ladder from controlled plain English (ASD-STE100, or 80% of it) through diagrams (Mermaid, ASCII, SVG) to interactive single-file HTML pages, and on explicit request an explainer video. Use when an answer risks being long or dense, when the user asks to explain, summarize or visualize something, says they do not understand, re-asks the same question, or asks for a diagram, a page, a demo or an explainer for a topic. Pick the lowest rung that answers the question; escalate when prose stops working.
+description: Turn a dense result, system, error or architecture into a custom artifact the user can actually process. The default artifact is a high-quality interactive single-file HTML page (self-contained, no CDN, no build step); diagrams (Mermaid, ASCII) only where HTML cannot render; controlled plain English (ASD-STE100 spirit) for chat answers; an explainer video on explicit request. Use when the user asks to explain, summarize, visualize or show something, says they do not understand, re-asks, or asks for a page, a diagram, a demo or an explainer. A markdown file is never the deliverable when a page is possible.
 ---
 
 # Explainer
 
 As agents do more work on their own, the human job moves up to supervising
 and understanding what came back. Raw prose is the most expensive format to
-process: when an explanation grows long or dense, build a small custom
-artifact instead - disposable, made for one question, worth more than a page
-of text.
+process, and models are now strong at frontend: when something deserves more
+than a chat answer, build a small custom artifact - disposable, made for one
+question, a real page rather than a wall of text.
 
 ## The ladder
-
-Start at the lowest rung that can answer the question; move up one rung when
-the user re-asks, says they do not understand, or the prose would run past a
-screen. Never jump straight to the top without a signal.
 
 1. **Controlled English** - simplified technical English in the spirit of
    ASD-STE100 (apply "80% of the way" when the full spec reads too stiff):
    short sentences, one topic per sentence, active voice, plain verbs, no
-   idiom, measured numbers over adjectives. This stays the baseline voice
-   for every rung above.
-2. **Diagram** - when structure is the question (flow, timeline, states,
-   dependencies, who calls what). Mermaid where a forge renders it, ASCII
-   when the artifact must survive a terminal or a diff, SVG for layout
-   control. One diagram answers exactly one question; label every box with
-   the real names.
-3. **Interactive single-file HTML page** - when the user must explore rather
-   than read: tabs, hover detail, sliders, step-through of a sequence.
-   Self-contained by default - inline CSS and JS, no CDN, no network, no
-   build step - so the file opens directly in a browser on any machine.
-   A throwaway artifact, never a maintained app.
+   idiom, measured numbers over adjectives. This is the voice of EVERY
+   answer, chat included; prose alone is fine only for short replies.
+2. **Diagram** - for surfaces that cannot render a page: terminal output,
+   diffs, PR comments, doc embeds. Mermaid where a forge renders it, ASCII
+   in a terminal. A diagram is a bonus inside a chat answer, never the
+   deliverable when a page is possible.
+3. **Interactive single-file HTML page - the default artifact.** Whenever
+   the request deserves an artifact, build a real page: deliberate layout,
+   real typography, color, and interaction (hover detail, filters, tabs,
+   step-through). Self-contained: inline CSS and JS, no CDN, no network,
+   no build step - it opens directly in a browser on any machine. A
+   throwaway artifact, never a maintained app. A markdown or plain text
+   file is never an acceptable substitute.
 4. **Explainer video, on explicit request only** - storyboard first (scenes,
    narration text, what appears when) and the user approves it before any
    render. Local path first: animated HTML canvas plus capture, or the
@@ -39,6 +36,17 @@ screen. Never jump straight to the top without a signal.
    available. An external API (voice, video) only on explicit user
    instruction - the key comes from an environment variable and never lands
    in code, logs or the artifact itself.
+
+## Quality bar
+
+- Design it, do not dump it: a page with no styling decisions (default
+  HTML look, no spacing system, no hierarchy) is not done. Rebuild it.
+- Inspect before delivering: screenshot the rendered page and look at it.
+  The artifact ships only after visual inspection - verified means seen.
+- Start at the highest rung the surface allows: the page by default, a
+  diagram only where a page cannot live, prose for short chat replies.
+- "Make it better", a re-ask or "I do not understand" means ONE rung up,
+  not a polish of the same rung.
 
 ## Rules
 
@@ -54,7 +62,9 @@ screen. Never jump straight to the top without a signal.
 
 ## Outputs
 
-- the chosen artifact under `scratch/` (or the declared location): text in
-  controlled English, a diagram, an HTML page or, on request, a video
+- the artifact under `scratch/` (or the declared location): by default the
+  interactive HTML page; a diagram where no page can live; a video on
+  explicit request
+- a screenshot kept as evidence of the visual inspection
 - a short chat summary plus the artifact path
 - one rung kept in reserve: the next format to try if the user is still lost
