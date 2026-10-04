@@ -1,6 +1,13 @@
 {
   "version": 1,
   "skills": {
+    "agy": {
+      "source": "(authored)",
+      "ref": "2026-10-04",
+      "files": {
+        "SKILL.md": "65d8daa554ef5a67bbdb821589409dbddcc33f85f804759db3c96f60ea1a9b1f"
+      }
+    },
     "docs-fishing": {
       "source": "(authored)",
       "ref": "2026-10-02",
