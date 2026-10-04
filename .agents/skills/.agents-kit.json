@@ -8,6 +8,13 @@
         "SKILL.md": "0509cb91550025ff59d36efdf500fe8d3bac90f6a74a583e029f947e089e7c0c"
       }
     },
+    "explainer": {
+      "source": "(authored)",
+      "ref": "2026-10-04",
+      "files": {
+        "SKILL.md": "1817f43ef11f7f399a574532a4c359e92258b09fa18c7893e6cc9eb6e98b5d2b"
+      }
+    },
     "using-superpowers": {
       "source": "obra/superpowers",
       "ref": "8ca22dba9a94f28898bbce59f2537ff4d87c747d",
