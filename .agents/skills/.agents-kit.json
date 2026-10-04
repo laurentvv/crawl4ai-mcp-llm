@@ -15,6 +15,13 @@
         "SKILL.md": "f662c8b949922f4c76b1d0d91e4e176bd7f6e8a255d53e76752143d8b7749ab5"
       }
     },
+    "project-dashboard": {
+      "source": "(authored)",
+      "ref": "2026-10-04",
+      "files": {
+        "SKILL.md": "72e53de56f18acf95bff707c29f7d6eb03b1fd0c1a2aa5375f7d6c296777f3a4"
+      }
+    },
     "using-superpowers": {
       "source": "obra/superpowers",
       "ref": "8ca22dba9a94f28898bbce59f2537ff4d87c747d",
