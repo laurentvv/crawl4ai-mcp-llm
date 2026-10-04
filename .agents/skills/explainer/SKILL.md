@@ -50,6 +50,9 @@ question, a real page rather than a wall of text.
 
 ## Rules
 
+- The artifact speaks the reader's language: write it in the chat language the
+  repository declares for replies to the user, whatever the repository content
+  language is. It is a deliverable to a person, not repository content.
 - Artifacts are disposable: write them under `scratch/` or the location the
   repository declares; never wire them into the build or the docs unless
   asked.
