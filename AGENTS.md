@@ -3,7 +3,7 @@
 > Instructions for any AI coding agent working in this repository.
 > Structure: **common block** (delimited, resyncable) + **project-specific part** (free).
 
-<!-- BEGIN:agents-common v2.2 — block shared across repositories (agents-kit). Do not edit by hand: resync with scripts/sync_agents.py -->
+<!-- BEGIN:agents-common v2.3 — block shared across repositories (agents-kit). Do not edit by hand: resync with scripts/sync_agents.py -->
 <!-- The script only replaces what lies between the BEGIN/END markers; all repository-specific content is preserved -->
 
 > **Priority on conflict**: explicit user instruction > this repo's §7 > this common block. The §5 prohibitions are lifted only on a formal explicit request. This block is overwritten on every sync: add nothing here (lessons → §7, see §6).
@@ -13,6 +13,7 @@
 - Default machine: **Windows 11**, shell **Git Bash** — any deviation (PowerShell 7, WSL, Linux…) is declared in §7; use ONLY the declared shell's commands.
 - Python: **`uv` only** — never `pip install`, never `requirements.txt` (`uv add` / `uv run`).
 - Machine paths: never hardcoded — go through the project configuration (config.py / .env / dedicated section).
+- Code search: on large repositories (> 5k files, or a `.tgrep/` index folder present), prefer the fast indexed `tgrep` CLI from the PATH over recursive `grep`/`find` scans — `tgrep -- "pattern" .`, `tgrep -t <type> -- "pattern" .` (first use: `tgrep index .`; keep `.tgrep/` git-ignored). Below ~2k files, plain `git grep` is already instant.
 - Text files: **UTF-8 without BOM**, line endings per `.gitattributes`. Never markdown exported or pasted from a rich editor (Notion, Word…): it arrives escaped and becomes unreadable for the agent.
 - Language: **English** for everything written in the repository (code, comments, docs, commit messages, ledger); **French** for chat replies to the user. Any deviation is declared in §7.
 - Long context (architecture, detailed lessons, ecosystem): see the repo's `PROJECT_MEMORY.md` or `docs/` — AGENTS.md stays deliberately short.
