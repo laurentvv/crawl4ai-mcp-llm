@@ -1,0 +1,310 @@
+#!/usr/bin/env python3
+"""Pre-delivery compliance check: does this file meet the platform's spec?
+
+Checks duration, frame size / aspect, fps, codec, pixel format, colour tags,
+file size, integrated loudness and true peak against the chosen platform
+and prints a PASS/WARN/FAIL table. Exit code 1 when anything FAILs. Each
+row's `fix` is the command that resolves it; a few of the less obvious FAILs
+(video codec, pixel format, HDR colour, loudness) also carry a plain-language
+`reason` -- "QuickTime and iOS commonly reject video that isn't 8-bit 4:2:0",
+not a restatement of the spec value -- for a caller reporting this to someone
+who doesn't already know why the spec says what it says.
+
+Platforms: youtube, shorts, reels, tiktok, x, linkedin, facebook, broadcast (EBU R128),
+podcast, custom -- one table, shared with export.py and the render.py templates
+
+Examples:
+  python3 check.py final.mp4 --platform youtube
+  python3 check.py reel.mp4 --platform reels --json
+  python3 check.py spot.mov --platform broadcast
+  python3 check.py clip.mp4 --platform custom --max-duration 30 --aspect 1:1 --lufs -16
+  python3 check.py final.mp4 --platform reels --content
+
+--content (opt-in) adds three content rows from one decode pass: black (share of the
+duration that is black: WARN > 10%, FAIL >= 95%), frozen (longest frozen span: WARN >
+max(3 s, 30% of the duration), FAIL when the whole video is frozen) and silence (share
+below -50 dBFS: WARN > 50%, FAIL >= 95%). Without it the row set is unchanged.
+"""
+import argparse
+import json
+import re
+import sys
+from fractions import Fraction
+from typing import Any, Dict, List
+
+from _platforms import PLATFORMS, PLATFORM_CHOICES, spec_of, resolve as resolve_platform
+from _common.probe import SILENT_PEAK_DBFS, detect_content, measured_level_dbfs
+from _common import STATE, add_common, apply_common, die, emit, info, probe, require_tool, run, run_analysis, dry_run_input_pending
+
+# The one delivery table (scripts/_platforms.py): check.py's rows, export.py's presets and the
+# render.py templates all read it, so a platform's loudness spec is stated once. Only the
+# destinations that are compliance targets appear here; youtube-hdr / youtube-av1 are export
+# presets of the youtube target, not separate specs.
+SPECS: Dict[str, Dict[str, Any]] = {name: spec_of(name) for name in sorted(PLATFORMS)
+                                    if PLATFORMS[name]["check"] == name}
+
+
+def measure_loudness(path: str) -> Dict[str, float]:
+    if dry_run_input_pending(path):
+        return {}
+    ffmpeg = require_tool("ffmpeg")
+    proc = run_analysis([ffmpeg, "-hide_banner", "-nostdin", "-i", path, "-vn", "-af", "loudnorm=I=-14:TP=-1:LRA=11:print_format=json", "-f", "null", "-"], check=False, record=True)
+    m = re.search(r"\{[^{}]*\"input_i\"[^{}]*\}", proc.stderr, re.S)
+    if not m:
+        return {}
+    d = json.loads(m.group(0))
+    try:
+        return {"lufs": float(d["input_i"]), "tp": float(d["input_tp"]), "lra": float(d["input_lra"])}
+    except (KeyError, ValueError):
+        return {}
+
+
+# --content thresholds (docs/design-decisions.md, "check.py --content").
+BLACK_WARN, BLACK_FAIL = 0.10, 0.95        # share of the duration that is black
+FROZEN_WARN_S, FROZEN_WARN_SHARE = 3.0, 0.30  # longest frozen span: WARN above max(3 s, 30%)
+FROZEN_FAIL = 0.95                         # a frozen span covering this share = whole video frozen
+SILENCE_WARN, SILENCE_FAIL = 0.50, 0.95    # share of the duration below SILENT_PEAK_DBFS
+
+
+def _span_total(spans: Any) -> float:
+    return sum(max(0.0, e - s) for s, e in spans)
+
+
+def aspect_name(w: int, h: int) -> str:
+    f = Fraction(w, h)
+    for name, target in (("16:9", Fraction(16, 9)), ("9:16", Fraction(9, 16)), ("1:1", Fraction(1)), ("4:5", Fraction(4, 5)), ("4:3", Fraction(4, 3)), ("21:9", Fraction(21, 9))):
+        if abs(float(f) - float(target)) < 0.02:
+            return name
+    return f"{f.numerator}:{f.denominator}"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("input")
+    ap.add_argument("--platform", choices=PLATFORM_CHOICES, default=None, help="delivery spec to check against (default: youtube, with judgement rows reported as WARN because no platform was named)")
+    ap.add_argument("--max-duration", type=float, help="override max duration in seconds")
+    ap.add_argument("--aspect", help="override allowed aspect (e.g. 9:16 or 16:9,1:1)")
+    ap.add_argument("--lufs", type=float, help="override loudness target")
+    ap.add_argument("--tp", type=float, help="override true-peak ceiling")
+    ap.add_argument("--max-mb", type=float, help="override max file size in MB")
+    ap.add_argument("--no-loudness", action="store_true", help="skip the loudness measurement (faster)")
+    ap.add_argument("--content", action="store_true",
+                    help="also check the content (one decode pass): black, frozen and silence rows")
+    add_common(ap)
+    args = ap.parse_args()
+    apply_common(args)
+
+    # Eval 7: runs that only wanted the format rows got youtube's loudness / true-peak FAILs and
+    # spent a paragraph explaining why they left them alone. Without a named platform the
+    # judgement rows are advisory: WARN, not FAIL, and not counted as failed.
+    named = args.platform is not None
+    args.platform = resolve_platform(args.platform) or "youtube"
+    spec = dict(SPECS[args.platform])
+    if args.max_duration is not None:
+        spec["max_duration"] = args.max_duration
+    if args.aspect:
+        spec["aspects"] = [a.strip() for a in args.aspect.split(",")]
+    if args.lufs is not None:
+        spec["lufs"] = args.lufs
+    if args.tp is not None:
+        spec["tp"] = args.tp
+    if args.max_mb is not None:
+        spec["max_bytes"] = int(args.max_mb * 1024 * 1024)
+
+    meta = probe(args.input)
+    v, a = meta.get("video") or {}, meta.get("audio") or {}
+    rows: List[Dict[str, Any]] = []
+
+    JUDGEMENT = {"duration", "aspect", "loudness", "true peak", "fps", "resolution"}
+
+    def row(name: str, status: str, value: Any, expect: Any, fix: str = "", reason: str = "") -> None:
+        # "format" rows are safe to fix mechanically; "judgement" rows change the content
+        # (what is cut, what is cropped, how loud ambience gets) and need a decision.
+        # "fix" is the command that resolves it; "reason" (only on the FAILs a non-technical
+        # person would ask "so what?" about) is why it matters in plain terms, not the spec clause.
+        if status == "FAIL" and not named and name in JUDGEMENT:
+            status = "WARN"
+        rows.append({"check": name, "status": status, "value": value, "expected": expect, "fix": fix,
+                     "reason": reason if status != "PASS" else "",
+                     "kind": "judgement" if name in JUDGEMENT else "format"})
+
+    dur = meta.get("duration") or 0.0
+    if spec["max_duration"]:
+        row("duration", "PASS" if dur <= spec["max_duration"] else "FAIL", f"{dur:.2f}s", f"<= {spec['max_duration']:g}s", "decide with the user: cut.py keeps quality but drops content; fit.py --duration speeds up (audio pitch-preserved, motion faster)")
+    else:
+        row("duration", "PASS", f"{dur:.2f}s", "any")
+
+    if v:
+        w, h = v["width"], v["height"]
+        if v.get("rotation") in (90, -90, 270, -270):
+            w, h = h, w
+        asp = aspect_name(w, h)
+        if spec["aspects"]:
+            row("aspect", "PASS" if asp in spec["aspects"] else "FAIL", asp, "/".join(spec["aspects"]), f"fit.py --aspect {spec['aspects'][0]} --fit pad (keeps everything, adds bars) or crop (fills the frame, loses the edges: check the subject with look.py)")
+        else:
+            row("aspect", "PASS", asp, "any")
+        short = min(w, h)
+        if spec["min_height"]:
+            row("resolution", "PASS" if short >= spec["min_height"] else "WARN", f"{w}x{h}", f"short side >= {spec['min_height']}", "upscaling will not add detail; re-export from the master")
+        fps = v.get("fps") or 0
+        if spec["fps_max"]:
+            row("fps", "PASS" if fps <= spec["fps_max"] + 0.01 else "FAIL", f"{fps:g}", f"<= {spec['fps_max']}", "fit.py --fps 30 (drops half the frames of 60 fps motion; fine for talking heads, visible on sports/gaming)")
+        row("vfr", "PASS" if not v.get("variable_frame_rate_suspected") else "WARN", "variable" if v.get("variable_frame_rate_suspected") else "constant", "constant", "fit.py --fps N (any re-encode conforms it)")
+        if spec["codecs"]:
+            row("video codec", "PASS" if v.get("codec") in spec["codecs"] else "FAIL", v.get("codec"), "/".join(spec["codecs"]), "export.py --preset " + (PLATFORMS[args.platform].get("preset") or "youtube"),
+                reason="the platform's player may refuse to decode this codec at all, not just look worse")
+        pf = v.get("pix_fmt") or ""
+        if args.platform in ("reels", "tiktok", "x", "linkedin", "facebook"):
+            row("pixel format", "PASS" if pf == "yuv420p" else "FAIL", pf, "yuv420p (8-bit 4:2:0)", "export.py preset re-encodes to yuv420p",
+                reason="QuickTime and iOS commonly reject video that isn't 8-bit 4:2:0")
+        if spec["sdr_only"] and v.get("bt2020_or_hdr"):
+            row("colour", "FAIL", v.get("hdr_format"), "SDR BT.709", "color.py --to-sdr",
+                reason="a platform or player without HDR support will show this washed-out, too dark, or with wrong colours -- not a rendering glitch, a colour space mismatch")
+        else:
+            tags = (v.get("color_primaries"), v.get("color_transfer"))
+            untagged = not tags[0] and not tags[1]
+            if v.get("bt2020_or_hdr") or tags == ("bt709", "bt709") or args.platform in ("podcast", "custom"):
+                row("colour", "PASS", f"{tags[0]}/{tags[1]}" + (f" ({v.get('hdr_format')})" if v.get("bt2020_or_hdr") else ""), "bt709/bt709 tagged (or HDR)")
+            elif untagged and (v.get("bit_depth") or 8) == 8:
+                # untagged 8-bit video is treated as BT.709 by every player and platform; nothing to fix
+                row("colour", "PASS", "untagged (players assume bt709)", "bt709/bt709 tagged (or HDR)")
+            else:
+                row("colour", "WARN", f"{tags[0]}/{tags[1]}", "bt709/bt709 tagged (or HDR)", "color.py --retag bt709 when the picture really is 709; color.py --to-sdr when it is HDR")
+    elif args.platform not in ("podcast", "custom"):
+        row("video", "FAIL", "none", "video stream", "")
+
+    size = meta.get("size_bytes") or 0
+    if spec["max_bytes"]:
+        row("file size", "PASS" if size <= spec["max_bytes"] else "FAIL", f"{size / 1024 / 1024:.1f} MB", f"<= {spec['max_bytes'] / 1024 / 1024:.0f} MB", "export.py --crf 24 or lower resolution")
+
+    if a:
+        row("audio", "PASS", f"{a.get('codec')} {a.get('channels')}ch {a.get('sample_rate')}Hz", "present")
+        if args.platform == "podcast":
+            # Podcast rows, informational: neither can fail a delivery, both are things a
+            # publisher notices after the fact. A 5.1 podcast master is the common one -- every
+            # player downmixes it, none of them the same way, and the centre-heavy dialogue
+            # comes back at a level nobody checked.
+            ch = a.get("channels") or 0
+            row("channels", "PASS" if ch in (1, 2) else "WARN", f"{ch}ch", "1 (mono) or 2 (stereo)",
+                "audio.py --downmix (5.1/7.1 to stereo with the standard weights) or audio.py --mono",
+                reason="podcast players downmix 5.1 unpredictably")
+    if args.platform == "podcast":
+        chapters = meta.get("chapters") or []
+        row("chapters", "PASS" if chapters else "WARN", f"{len(chapters)}" if chapters else "none", ">= 1 chapter marker",
+            "metadata.py episode.m4a --chapters chapters.txt (`TIME TITLE` per line; streams copied)",
+            reason="chapter markers are optional, but a podcast app shows them as the episode's seekable table of contents")
+    # Subtitles, informational and on every platform: a soft subtitle track that carries no
+    # language tag is the defect caption.py --mode mux's multi-track form exists to prevent -- a
+    # player lists it as "Track 2" and a viewer cannot tell which language it is. Never counted in
+    # `failed`: no platform refuses a delivery over it.
+    subs = meta.get("subtitle_stream_details") or []
+    if not subs:
+        row("subtitles", "WARN", "none", ">= 1 language-tagged subtitle track",
+            "caption.py video.mp4 --mode mux --srt subs.srt:en -o video_subs.mkv (streams are copied)",
+            reason="subtitles are optional, but they are the cheapest accessibility win a delivery has")
+    else:
+        untagged = [str(s["index"]) for s in subs if not s.get("language")]
+        listed = ", ".join((s.get("language") or "untagged") for s in subs)
+        row("subtitles", "WARN" if untagged else "PASS", f"{len(subs)} ({listed})",
+            "every track tagged with its language",
+            "caption.py video.mp4 --mode mux --srt subs.srt:en -o video_subs.mkv, or re-mux with `--srt file:lang` per track"
+            if untagged else "",
+            reason=("stream(s) " + ", ".join(untagged) + " carry no language tag: a player lists them "
+                    "by number and the viewer has to guess") if untagged else "")
+
+    if a:
+        audio_row = next(r for r in rows if r["check"] == "audio")
+
+        def silent_audio(peak: float) -> None:
+            # a present-but-silent track is the failed-TTS / muted-export case: "present" is not a pass
+            # FAIL under a platform with a loudness target (it would fail loudness anyway); WARN
+            # otherwise: a muted screen recording or a b-roll clip is a legitimate silent track
+            audio_row.update(status="FAIL" if spec["lufs"] is not None else "WARN", value=audio_row["value"] + f", silent (peak {peak:.1f} dB)",
+                             expected=f"present, peak above {SILENT_PEAK_DBFS:g} dBFS",
+                             fix="audio.py --replace with the real track, or re-export from the master",
+                             reason="the audio track exists but carries no sound: viewers hear nothing")
+        loudness_ran = False
+        if a.get("sample_rate") and a["sample_rate"] not in (44100, 48000):
+            row("sample rate", "WARN", a["sample_rate"], "44100 or 48000", "loudness.py --sample-rate 48000")
+        if not args.no_loudness and spec["lufs"] is not None:
+            lm = measure_loudness(args.input)
+            loudness_ran = bool(lm)
+            if lm and lm["tp"] <= SILENT_PEAK_DBFS:
+                silent_audio(lm["tp"])
+            if lm:
+                diff = abs(lm["lufs"] - spec["lufs"])
+                row("loudness", "PASS" if diff <= spec["lufs_tol"] else "FAIL", f"{lm['lufs']:.1f} LUFS", f"{spec['lufs']:g} ± {spec['lufs_tol']:g} LUFS", f"loudness.py -I {spec['lufs']:g} for speech or music; leave ambience/near-silence (<= -40 LUFS) alone and say so",
+                    reason="the platform will auto-normalise it to its own target anyway, which can pump or duck the mix in ways you did not choose")
+                row("true peak", "PASS" if lm["tp"] <= spec["tp"] + 0.05 else "FAIL", f"{lm['tp']:.1f} dBTP", f"<= {spec['tp']:g} dBTP", f"loudness.py --tp {spec['tp']:g}")
+            else:
+                # ffmpeg's loudnorm JSON didn't parse out of stderr (unexpected/garbled output).
+                # Dropping the loudness/true-peak rows silently here would report an overall PASS
+                # for a platform that has a loudness requirement, without ever having checked it --
+                # a false PASS is worse than noise. WARN so the gap is visible in the report.
+                row("loudness", "WARN", "could not measure", f"{spec['lufs']:g} ± {spec['lufs_tol']:g} LUFS", "re-run check.py, or verify loudness manually",
+                    reason="ffmpeg's loudness measurement didn't produce a readable result -- this was not actually checked")
+                row("true peak", "WARN", "could not measure", f"<= {spec['tp']:g} dBTP", "re-run check.py, or verify true peak manually")
+        if not loudness_ran and not dry_run_input_pending(args.input):
+            # loudness skipped (--no-loudness, or a spec with no target): one cheap volumedetect pass
+            lv = measured_level_dbfs(args.input, seconds=None)
+            if lv and lv["peak_dbfs"] <= SILENT_PEAK_DBFS:
+                silent_audio(lv["peak_dbfs"])
+    elif args.platform in ("podcast",):
+        row("audio", "FAIL", "none", "audio stream", "audio.py --replace")
+    else:
+        row("audio", "WARN", "none", "audio stream", "audio.py --replace (silent uploads are often rejected)")
+
+    if args.content:
+        cd = detect_content(args.input, dur, video=bool(v), audio=bool(a))
+        span = dur if dur > 0 else 0.0
+        if "black" in cd and span:
+            share = _span_total(cd["black"]) / span
+            row("black", "FAIL" if share >= BLACK_FAIL else ("WARN" if share > BLACK_WARN else "PASS"),
+                f"{share * 100:.0f}% black", f"<= {BLACK_WARN * 100:.0f}% black",
+                "look.py the black spans; trim them with cut.py or re-export from the master",
+                reason="an all-black or mostly black picture is usually a failed render or a missing clip")
+        if "frozen" in cd and span:
+            longest = max((e - s for s, e in cd["frozen"]), default=0.0)
+            limit = max(FROZEN_WARN_S, FROZEN_WARN_SHARE * span)
+            row("frozen", "FAIL" if longest >= FROZEN_FAIL * span else ("WARN" if longest > limit else "PASS"),
+                f"longest {longest:.1f}s", f"<= {limit:.1f}s frozen",
+                "look.py the frozen span: a still title card is fine, a stuck decode is not",
+                reason="a picture that never changes is usually a stuck frame, not the edit")
+        if "silence" in cd and span:
+            share = _span_total(cd["silence"]) / span
+            row("silence", "FAIL" if share >= SILENCE_FAIL else ("WARN" if share > SILENCE_WARN else "PASS"),
+                f"{share * 100:.0f}% silent", f"<= {SILENCE_WARN * 100:.0f}% below {SILENT_PEAK_DBFS:g} dBFS",
+                "silence.py to cut the gaps, or audio.py --replace when the track is empty",
+                reason="most of the running time has no audible sound")
+
+    failed = [r for r in rows if r["status"] == "FAIL"]
+    warned = [r for r in rows if r["status"] == "WARN"]
+    notes: List[str] = []
+    if not named:
+        notes.append("no --platform given: youtube's spec was assumed, so judgement rows (duration, aspect, fps, resolution, loudness, true peak) are WARN, not FAIL; name a platform to enforce them")
+    if not args.json:
+        width = max(len(r["check"]) for r in rows)
+        print(f"{args.input} — {args.platform}" + ("" if named else " (assumed)"))
+        for r in rows:
+            line = f"  {r['status']:4s} {r['check']:{width}s}  {r['value']}  (expected {r['expected']})"
+            if r["status"] != "PASS" and r["kind"] == "judgement":
+                line += "  [judgement]"
+            if r["status"] != "PASS" and r["reason"]:
+                line += f"  ({r['reason']})"
+            if r["status"] != "PASS" and r["fix"]:
+                line += f"  -> {r['fix']}"
+            print(line)
+        print(f"  {len(rows)} checks, {len(failed)} failed, {len(warned)} warnings")
+        for n in notes:
+            print(f"  note: {n}")
+    extra: Dict[str, Any] = {"notes": notes} if notes else {}
+    if failed:
+        die(f"{len(failed)} of {len(rows)} {args.platform} checks failed: {', '.join(r['check'] for r in failed)}",
+            kind="verification", output=None, dry_run=STATE.dry_run,
+            platform=args.platform, checks=rows, failed=len(failed), warnings=len(warned), ok=False, **extra)
+    emit(None, platform=args.platform, checks=rows, failed=len(failed), warnings=len(warned), ok=True, **extra)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

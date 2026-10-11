@@ -8,6 +8,59 @@
         "SKILL.md": "65d8daa554ef5a67bbdb821589409dbddcc33f85f804759db3c96f60ea1a9b1f"
       }
     },
+    "animate": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "RECIPES.md": "21ff63d84391db8d96ecdf9170095f55a42c836ccc36fd3269c4772bab031ba2",
+        "SKILL.md": "b8ede161270458e6ae2e45e8a1985373515d4c63de5568ddb0f9012d7634356c"
+      }
+    },
+    "animate-expo": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "RECIPES.md": "1193cb71334da2e2341778dd92bec9ac79d989cb07fd55d661f324ed5871e718",
+        "SKILL.md": "9a01a91701e6563c67677dde6b66ab30f066a5341d42c21a90ba51d99679274a"
+      }
+    },
+    "animation-performance": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "ceb9dd3fe912615830f725a0120ccf8d012d15a6218001a5cd6c15d38e39a957"
+      }
+    },
+    "animation-vocabulary": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "40d2b27adfdfeb0570a9f20e7d0255109d9233c50603878bcd0dcd04c923fd94"
+      }
+    },
+    "apple-design": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "77bb63b7043bb93aca2ff4ab040c249484eef35682bb6ff7163433c31d30adc7"
+      }
+    },
+    "ask-sonner": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "API.md": "4bb06f482c5757529e3d7a672a30fbeed42d24919a63e2571384a9ce1549aa7f",
+        "SKILL.md": "39f3ee185b3aa2cf70a689052ff078953ce7ba5915ed7a9391d232e9d4dcf57f"
+      }
+    },
+    "break-ui": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "CATALOG.md": "7358efcc6bb48e35187be1c064cf60022dcb18c72c18fab58b606dfc5f421f15",
+        "SKILL.md": "e7eec1d70ac56a04255e9c0dbe98084ea3d544cc04aaad34f32c95d6fa9dff5e"
+      }
+    },
     "docs-fishing": {
       "source": "(authored)",
       "ref": "2026-10-02",
@@ -15,11 +68,108 @@
         "SKILL.md": "0509cb91550025ff59d36efdf500fe8d3bac90f6a74a583e029f947e089e7c0c"
       }
     },
+    "emil-design-eng": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "ffbe68e6007fb42cb8149f089b400a1ca007d59ba23e8948e2be4476f3175939"
+      }
+    },
     "explainer": {
       "source": "(authored)",
       "ref": "2026-10-04",
       "files": {
         "SKILL.md": "f662c8b949922f4c76b1d0d91e4e176bd7f6e8a255d53e76752143d8b7749ab5"
+      }
+    },
+    "ffmpeg-skill": {
+      "source": "(authored)",
+      "ref": "2026-10-09",
+      "files": {
+        "LICENSE": "7522b29e4d6e90f2a8fab15f07d224b1064c70692a872be9996ac1a88cf474e9",
+        "NOTICE.md": "e237b64038a0df0ecff163f7e40b82e425a8f33b2285ee57fd565980601173bf",
+        "package.json": "720314352be294c7c50ebc50b0eaadc06b7fcbb9d5a7f2ce19b532590814de02",
+        "references/ci-platform-pitfalls.md": "0bc318f80ce82e410ad67d4ba678ab70c80a5576ecad95d63d6f355c9a4d2b22",
+        "references/devices.md": "7c2133aa6b6c0067b71c7634cd2663c6015c9a2343d1032bad4888e232588c05",
+        "references/gotchas.md": "b1725576c3571121b16ce45edf8aa34e906ffff87399b4539796764b64472169",
+        "references/process-pitfalls.md": "431c3f7bd34f416be9848a4b5033bbc15f309874bd19bb3b5c3c4d2b7dfc9b2a",
+        "references/scripts.md": "53255e54ecd86c9b266b805f79104a23cf9b38cf7a9766756be1fd72bf56346e",
+        "scripts/_ass_overlay.py": "eca5bbe97ce74c65f073b72a651452230afc51a6dd1d9691bc3e9fd46185d4aa",
+        "scripts/_common/__init__.py": "399f6559a4ffa560d3c924f6f0a714d8618aaf22c0c3863058155fe91ed8d297",
+        "scripts/_common/asr.py": "cb8c99196066d4befb3e9d1a5cafbbb7ada57046254c5f85b51e3f27212d97eb",
+        "scripts/_common/color.py": "e5d18fb93b081bc6b3b0961eb8d9f5d577401e5f2335480485f1d9e31353e2d8",
+        "scripts/_common/decision.py": "5c2ccb280f4ed2d55176ba32f90cfdf569221bd5f33e0142a30ff1525558ac9c",
+        "scripts/_common/drawtext.py": "82b719f7836fb428463ea04067ca9e0e627bd428175180c784c02cedcf088093",
+        "scripts/_common/emit.py": "29e0566554235f282e0205b4fe41a81289ee8a29b74b3df2d332b76e773ae201",
+        "scripts/_common/emoji.py": "8db4f6f4eca49990b879f127606ba2795048a7bac9ac86637127cdf6087fd726",
+        "scripts/_common/fonts.py": "98fa5b367438c5c95dd2ad30ae7b81980582acad050d6702b890930f675a0aa1",
+        "scripts/_common/probe.py": "7821f7c6b2d8a41aaabfbb2d7e6c9ab87bab3a648b1f0162011267e931cb3798",
+        "scripts/_common/runner.py": "dfd1a642c7c0ab4e886626003dc3a4a7b151928bb93ce482f4694c1544071183",
+        "scripts/_common/text.py": "aae381f89cac2c510abec8f2fd82d88412a3a659dbddba175a81d15edc0c7ebf",
+        "scripts/_common/timeline.py": "527c002e1e591ece73e47c8db7be95c4446d4f67dd34ab8f89b5b5a5833b23e9",
+        "scripts/_common/wrap.py": "49259773eee98c6276c455ead8e5db10da48bd39e29cb687601010a084132aff",
+        "scripts/_contract.py": "a3b6b760384ddd8f959ae7b62f7055db1e97b23f3dbe7ed13ce7db9de4649c8c",
+        "scripts/_platforms.py": "3b06a2c1cda1f106e9ae7699e9e6b4b0d490352655f8eebeb9336b4f4b524ae8",
+        "scripts/audio.py": "5b0fa95be3a9135ffa0b24464f398bcdfaf1b6a68886f8a55b5b7c04f6943ccd",
+        "scripts/background.py": "77e7d57a1459a75ebfb20b93d26952dc8d7ee42dd4ebd9e039a2c07ca980fa5b",
+        "scripts/batch.py": "148decfedd82ba04cc1f3881d03e138d891231b459d399b11e6767452cde8a5c",
+        "scripts/broll.py": "1ff00b8522f3542ec30e5d6b172964289fed0bbe572f504c3ae75f005c031082",
+        "scripts/caption.py": "9e8634a030e7076c0566d8d5a5cb4eb10b44f207596fc148911d13fd3383212a",
+        "scripts/check.py": "6af16c15d7d76f0b5a9c1c328612378b9def8b86207a7f3ab0806adf426f1353",
+        "scripts/color.py": "e26e5a5f34ab8dfff0f3a8c6cbffb2e4d9cf753b911ae75c0899136d2c0167bb",
+        "scripts/crop.py": "b209f617da1af72b0fa213c2bafe361838a48826cb963f12c23609a52f4ea55e",
+        "scripts/cropdetect.py": "859a86d92dad9b8f538b1a75b1ebb8116fde3b8a1894e2e79d489b096960a027",
+        "scripts/cut.py": "aadce1ac0ae09e0235bf8802e6257f356edc6a13ff0ea9c5807f6526cfbbdcea",
+        "scripts/deinterlace.py": "e7f49973222570ef285abc37c3e485492714e5efc47e6b4672fd3fe20e2b0cff",
+        "scripts/denoise.py": "ca27a98d9a18ad4b6b1ad823e0f944c329d8095c09d866839eff48f9833b904e",
+        "scripts/export.py": "151bea9cd385d34cac988fe722437e3de5dd2e1ddc692310422d253a2212cfeb",
+        "scripts/fit.py": "e5e217dbeb37d6c5abc9ce41da12b4d4bcfc2fd3bd910474cb71f174202af87d",
+        "scripts/freeze.py": "be3613f5a952c5d0a4b4512c482818e875cc0e130f66841ba864ad37d619dea7",
+        "scripts/graphics.py": "adbb7c5c5cc57e03870970e8b7fd26427dd37b60cfa288ca4738cb3f5a856ece",
+        "scripts/grid.py": "9e9e3fb3774efd210e4c404cc9ce74a5505b51b9ff3a8f32f427c627278b4ad4",
+        "scripts/insert.py": "2bba81f0833538df5ae306f2af47791b555a50aeae8c74209b6928d1643f7b14",
+        "scripts/join.py": "46a16eb9c38fd9b4d6270faa6891fe57c747276ae4e46acac7335d79a4f9a1ba",
+        "scripts/look.py": "5fc523eca18e4182283cc950c9adbc009aaf1593b105b1c470283893a838ec19",
+        "scripts/loop.py": "78b9a4a381656f4d8608cc901c96051d3d5757c7f3dcb4529486558a22a375b5",
+        "scripts/loudness.py": "f669f8b7c38c2e106fb93706191ab6b02f3efc1ec1fe20064f11f901821e3930",
+        "scripts/metadata.py": "36e6e5fd200e771d8b550e98e6be926b3b6b4eb75d1418f5e8905ffa212c4eeb",
+        "scripts/multicam.py": "1b56a1281826034eec052625b91a491e8976bb7f68d890491ade2e30dbe02b91",
+        "scripts/overlay.py": "760ea6f51f14aa722004508379b2d6ebb9889eceb05acad80ab36544a4f4ce3c",
+        "scripts/pad.py": "2cd5cd5a54d59fd0d2e4a0d604ad773ea3b0ef304a4a390617970d051015c4d3",
+        "scripts/probe.py": "e2fd1390bc9976d5086e06e0a9ea64bd966638273339709ee7c2a0fa53210063",
+        "scripts/proxy.py": "1323a89caf31d68c27008b51fc636895e465b14ba6b69ea2442273257a15303e",
+        "scripts/redact.py": "98892c7951bd91af4499c850270af55f56f55cf52addc485e586ed6784698ea1",
+        "scripts/render.py": "5ae125486ef9a9f69077fdff138777950faac74e59251b9ee52ba0d2994767b1",
+        "scripts/report.py": "de3dd35419304a5c65e38f7086240bba7ed3e597ca9cdb5db2caf585cbc68dad",
+        "scripts/reverse.py": "750fdb11d50c8ab706a50da37f6975a9956d18fbb5164bdda5bbebd1b544570b",
+        "scripts/scenes.py": "44d1ec1e79fa715ddd707664848ab6d0ddba15d2738df17d61e3e38cebec833a",
+        "scripts/sequence.py": "7c4bc83b0d0abd6976a949b5110d4eea9c18ea254ba426ae7fec821c5971b5e3",
+        "scripts/silence.py": "70be0f45f335428a1c153ca9b97b3b0dcb13c8860107b4ff77a6026261b8c648",
+        "scripts/speedramp.py": "0fe109a1d175bb2da6f7239f24d487c708f07d176667838a51cf95cbc4986a14",
+        "scripts/sphere.py": "a69aa312e978ee8677b51e178164635f78c36f9c3bf1ee6078dca33d7b31f862",
+        "scripts/stabilize.py": "4971a6dc90d2dab35fd19662529450c8f2a32d1bd9c3aa4d7df6f4a1443887e5",
+        "scripts/straighten.py": "9b67e8b2a6763b5256198a073b4ffea1991493f33a283b40cc162a2e02595910",
+        "scripts/sync.py": "c79620860d44e7597bf66b960ea42ca5d992fca00ca65ed1185a15db20998356",
+        "scripts/verify.py": "2769967409e75ba56368068be38716b3022da94703971f1fa6816622acd652a8",
+        "scripts/waveform.py": "689f4108bd7bacc26aa1c57b4bf6ca00f7532fdd5a036e30b19c561ce9ada405",
+        "SKILL.md": "02ca00aefa74d2f6d2006c731be8030d292113aa1a619cf6f1fcb6ab34b0e16e",
+        "templates/audiogram.json": "62b861085141ac92774378460c4eaac553802a47068db4774ce3fac583a35dc5",
+        "templates/facebook.json": "19b6f7d63a101773905db4a2eae89cfc4e08e6473513ef8600fbdbf61c3ee73e",
+        "templates/linkedin.json": "e743f911b9a81d6dbd67e04755307d6ee0f0526e9962521fd0b250875a1a114e",
+        "templates/podcast.json": "52ac44d93104e3403248f4855279e23857b9810e50e857d5b9ac1a80b125b4c1",
+        "templates/reels.json": "4babffa264c53f637a10c844713d88db09941663baa72de2a2b61a925a73137c",
+        "templates/shorts.json": "00e25cac9bb574ac74089c985f3c2ed34db09963add32d308bbdc21b3f60f312",
+        "templates/tiktok.json": "c346c9e4c6f82c4b40b009ceb3e4ddb0df21ef5083ab6d301dc22906c8170e12",
+        "templates/x.json": "f8d7936f365aea4a9a63e4b0ad419b1effc4836b47b0d491a82e436fac4379a9",
+        "templates/youtube-shorts.json": "abf2c39ce09f5fc100730351b0340498e07f6e21c9d1bf7e3283c07f86b64951",
+        "templates/youtube.json": "0221caab867bb9a0b28766af35cb9c9761e3d1dd7d0c080a105ae167daf5506a"
+      }
+    },
+    "find-animation-opportunities": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "d52a377819b84a71930f0c822cfe2849f40301605a2d5c7eccbfa3b257700df2"
       }
     },
     "frontend-design": {
@@ -45,6 +195,30 @@
         "references/text-and-media.md": "6cf2833208b965b42a5a19be8299f5a0696c4e3ea4d5e9882825c637618ff4e2"
       }
     },
+    "improve-animations": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "AUDIT.md": "551c8473e20e5f4774680bc24d45e1c68e50992582720905c6b077756b7b5a55",
+        "PLAN-TEMPLATE.md": "0a08ac8e23fd2082d7ffb86aeed7b789de77328c3cf874b16f1a755f2ef0a6ad",
+        "SKILL.md": "73962447464433476343e2c12cd08ab39cc99a9e5f3c118c5fb54ed897574ef6"
+      }
+    },
+    "minimal-change-engineer": {
+      "source": "(authored)",
+      "ref": "2026-10-11",
+      "files": {
+        "NOTICE.md": "93c498ca64f29c5325190bb9d828a6a79adb13675b8b8a36143ed1b4f0b5d62e",
+        "SKILL.md": "dd8062f2d09fb83aea542f95136d70bbf4f46324e76769bf83d363f070b3353c"
+      }
+    },
+    "mobile-native": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "888b7651d66d66dbac4e72b7c554638eb19bd971d686d6cbdf030a5ef3788f55"
+      }
+    },
     "moli-webfetch": {
       "source": "lexmount/moli",
       "ref": "53111bf02f2d17a4fa52dc2ee6bebc863fe2f994",
@@ -54,11 +228,50 @@
         "references/fetch-recipes.md": "1b40d43ea209c7e36cfce9606fd7277910472bfddff44ef206edfd151f63d632"
       }
     },
+    "pick-ui-library": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "675fdce308683256ed617351a9b74d23457a5fbd0a562d9831b9c764b8c5e682"
+      }
+    },
     "project-dashboard": {
       "source": "(authored)",
       "ref": "2026-10-04",
       "files": {
         "SKILL.md": "72e53de56f18acf95bff707c29f7d6eb03b1fd0c1a2aa5375f7d6c296777f3a4"
+      }
+    },
+    "prototype": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "PICKER.md": "31a55eec94715cc79942e91e172e539e3031dcd5e2e5ee7c1446cf2caee960a6",
+        "SKILL.md": "bba39c955eb1871c5a02733976ceec5d0324198e0812e667604756489c89f7b9"
+      }
+    },
+    "reality-checker": {
+      "source": "(authored)",
+      "ref": "2026-10-11",
+      "files": {
+        "NOTICE.md": "fd8fe8e6da21549ebc561f5b5c7b5bbffe79dbcc1decf0073c7af097d904262d",
+        "SKILL.md": "0b45f299089997863b62428ce7456f69b77da72c83946fddb98932901bafa92f"
+      }
+    },
+    "review-animations": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "6ff590d29e436766135aa3d137be1fac2a867165c7257fc315b189361f1873af",
+        "STANDARDS.md": "e7d3605034acda54ca13e43aec9e64d65b53de20f75b11b8d694e373012fbe07"
+      }
+    },
+    "rust-refactoring": {
+      "source": "(authored)",
+      "ref": "2026-10-11",
+      "files": {
+        "NOTICE.md": "e857ce4b50af4e1d20c35424f3c3e307bfa39550013685ab871d5bc699ef18f9",
+        "SKILL.md": "8793ba41e7e47f529ffaf5192567e7bc93839a4446c46da43c60400119241521"
       }
     },
     "skill-creator": {
@@ -97,6 +310,21 @@
         "references/hermes-tools.md": "e2185c976a3c87503910e05e2aea58cc89bc8e569bb624b93df9958ac47a9190",
         "references/muse-tools.md": "5a1da5c575fe18456ca71cd47ebfd8a38c745f8d82a67fe64d5b83080000eeb3",
         "references/pi-tools.md": "703dbc83d23ecab9c6f388460c38abc482e9dee2fe6772a8c7a255152ad3a4d5"
+      }
+    },
+    "voice-ai-engineering": {
+      "source": "(authored)",
+      "ref": "2026-10-11",
+      "files": {
+        "NOTICE.md": "1bbac6cca2eefe5f312e0f8db55a97d3731d15339c88239e18185787cd5e128f",
+        "SKILL.md": "e173ea8e7d98491d4549046b0f78448382d54679fc1362f70ec2d4f6ad15d675"
+      }
+    },
+    "write-swift": {
+      "source": "emilkowalski/skills",
+      "ref": "2d228630ba1446365f614a108cb8252f1feda202",
+      "files": {
+        "SKILL.md": "16a4b6adb74e338e55e704ce5753ad54d825438b8a63930eeaede9f3c04c9447"
       }
     }
   }

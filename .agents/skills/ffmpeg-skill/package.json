@@ -1,0 +1,5 @@
+{
+  "name": "ffmpeg-skill",
+  "version": "2.7.0+gas.1",
+  "description": "Vendored copy of kajisho5/ffmpeg-skill v2.7.0 for generator-assets (see NOTICE.md). This minimal manifest only feeds scripts/_contract.py skill_version(); it is NOT an npm package and the upstream npx installer/bin are not vendored."
+}
