@@ -61,11 +61,53 @@
         "SKILL.md": "e7eec1d70ac56a04255e9c0dbe98084ea3d544cc04aaad34f32c95d6fa9dff5e"
       }
     },
+    "brutalist-industrial": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "7e16d97e74a303d62d572ad02c155d65dccd478fcf3372416765585b12ed0702"
+      }
+    },
+    "cinematic-motion": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "b5e4b30e362c14e319f3c14eb725ce6b35d1f733c3314a1b5d0b592d39664fed"
+      }
+    },
+    "corporate-trust": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "4b692ddc70c655486fdafda1271d9d068f24f9d2f137d19e1e4ea953a8f7f13b"
+      }
+    },
+    "dark-tech": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "6b856e651ba2a90a8bfe901ec206aa9ea262904eecf6454bf6f073e06ebee3e4"
+      }
+    },
+    "design-taste": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "c848bbddfdea89962da7b90faf53e033e9b2a8c1944f5dc98dbd78aeb758489f"
+      }
+    },
     "docs-fishing": {
       "source": "(authored)",
       "ref": "2026-10-02",
       "files": {
         "SKILL.md": "0509cb91550025ff59d36efdf500fe8d3bac90f6a74a583e029f947e089e7c0c"
+      }
+    },
+    "editorial-minimal": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "fd6c52053a992de985d5053278994784088f20bf9e76e1224ad9c75cdd8e3676"
       }
     },
     "emil-design-eng": {
@@ -204,6 +246,13 @@
         "SKILL.md": "73962447464433476343e2c12cd08ab39cc99a9e5f3c118c5fb54ed897574ef6"
       }
     },
+    "japanese-minimal": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "7b96ba5a48afd7d4e69f79f589f95e4fa6874384db0762c6d90b5cad0e1a6465"
+      }
+    },
     "minimal-change-engineer": {
       "source": "(authored)",
       "ref": "2026-10-11",
@@ -228,11 +277,25 @@
         "references/fetch-recipes.md": "1b40d43ea209c7e36cfce9606fd7277910472bfddff44ef206edfd151f63d632"
       }
     },
+    "neo-brutalism": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "bc71fa3bba394f4a314b244003eabfad4a705caaee407a277f721267b14deb2e"
+      }
+    },
     "pick-ui-library": {
       "source": "emilkowalski/skills",
       "ref": "2d228630ba1446365f614a108cb8252f1feda202",
       "files": {
         "SKILL.md": "675fdce308683256ed617351a9b74d23457a5fbd0a562d9831b9c764b8c5e682"
+      }
+    },
+    "playful-color": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "4e0b86bd1842d2cd300d6b22d3d069b48070c10a704a027453c88f6d5a21cdab"
       }
     },
     "project-dashboard": {
@@ -250,12 +313,26 @@
         "SKILL.md": "bba39c955eb1871c5a02733976ceec5d0324198e0812e667604756489c89f7b9"
       }
     },
+    "quiet-luxury": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "3f439a21dbb284554449563c05cb2da6fab9b156bd08a2ab5168b4c5cc781468"
+      }
+    },
     "reality-checker": {
       "source": "(authored)",
       "ref": "2026-10-11",
       "files": {
         "NOTICE.md": "fd8fe8e6da21549ebc561f5b5c7b5bbffe79dbcc1decf0073c7af097d904262d",
         "SKILL.md": "0b45f299089997863b62428ce7456f69b77da72c83946fddb98932901bafa92f"
+      }
+    },
+    "retro-print": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "9036bd4daf53dd27a7e2c05d9c1d158a6a8aa0e67a2ea5d49f6f8b7b34ff1731"
       }
     },
     "review-animations": {
@@ -296,6 +373,27 @@
         "scripts/run_eval.py": "43e3b8f80dbf69c343967ba77e268fae991d9fa3ed68b32a0ff02532cd48657f",
         "scripts/run_loop.py": "7bd6f674203168520517eec94c55f493c0d154339b061b4d7c0f0dad187d0f21",
         "scripts/utils.py": "3af8ae62c40c73ab712207436a0d9a981e845f25c5a7040229eb189cc8e45bb1"
+      }
+    },
+    "taste-accessibility": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "4d293f850d91330f98812ec6a36110ddbd9d2337f58719d32e9731a4ea519558"
+      }
+    },
+    "taste-gsap": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "648b1b14375061b643fa1f45a2f65ac12edd0bd6c9a489f24f60cd21f547ef5f"
+      }
+    },
+    "taste-web-performance": {
+      "source": "madebymustafa/design-taste",
+      "ref": "c4a6bff0871eb4b15371b0e7d2751628b0ed4608",
+      "files": {
+        "SKILL.md": "1d2a07263d33ce98cc708a2d056eadb1636e9a78d9ad04a93896630bf6ec5213"
       }
     },
     "using-superpowers": {
