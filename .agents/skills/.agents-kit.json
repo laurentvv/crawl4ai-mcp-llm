@@ -1,6 +1,14 @@
 {
   "version": 1,
   "skills": {
+    "agent-state": {
+      "source": "(authored)",
+      "ref": "2026-10-16",
+      "files": {
+        "scripts/state_agents.py": "189441f49af07e303eac77c1bc764e5e67387a193a9f17a880531cdc48c933c9",
+        "SKILL.md": "f909119fd031e7bf9f163bbdd4d842adc7b543fde698b448a0099cddf53adcca"
+      }
+    },
     "agy": {
       "source": "(authored)",
       "ref": "2026-10-04",

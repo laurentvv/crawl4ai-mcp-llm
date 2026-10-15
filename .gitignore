@@ -48,3 +48,4 @@ htmlcov/
 
 # Agent scratch area (docs-fishing snapshots, local audit artifacts)
 scratch/
+.agent/*.duckdb.wal

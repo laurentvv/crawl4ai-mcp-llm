@@ -3,7 +3,7 @@
 > Instructions for any AI coding agent working in this repository.
 > Structure: **common block** (delimited, resyncable) + **project-specific part** (free).
 
-<!-- BEGIN:agents-common v2.3 — block shared across repositories (agents-kit). Do not edit by hand: resync with scripts/sync_agents.py -->
+<!-- BEGIN:agents-common v3.0 — block shared across repositories (agents-kit). Do not edit by hand: resync with scripts/sync_agents.py -->
 <!-- The script only replaces what lies between the BEGIN/END markers; all repository-specific content is preserved -->
 
 > **Priority on conflict**: explicit user instruction > this repo's §7 > this common block. The §5 prohibitions are lifted only on a formal explicit request. This block is overwritten on every sync: add nothing here (lessons → §7, see §6).
@@ -20,44 +20,27 @@
 
 ## §2 On-disk state = source of truth
 
-Never rely on the context window alone: it degrades, gets compressed, gets erased. Work state lives in **four files** (default: repo root; allowed variants if declared in §7: `.agents/`, `memory-bank/`). On every start, crash or restart: read them to rebuild your state deterministically. **Proportionality**: the ledger is for feature suites — a question or a one-off fix does not open a sprint (one log entry is enough if the ledger exists).
+Never rely on the context window alone: it degrades, gets compressed, gets erased. Work state lives in **one DuckDB database**, `.agent/state.duckdb`, managed only through the `agent-state` skill CLI (shipped by the kit; another path is declared in §7):
 
-| File | Role | Lifecycle |
-|---|---|---|
-| `feature_list.json` | **Active** features (pending / in_progress) only. | Updated on every status change; `completed` ones move to `feature_list_archive.json` (keep it short — read every session). |
-| `contract.md` | Validation contract: strict, testable assertions (15-30 criteria). | **Frozen** before the first line of code; no longer editable by the generator (scope change = new contract approved by the user). At closure: archived as `docs/journal/contract_YYYY-MM-DD.md`. |
-| `progress.md` | Current sprint dashboard: goal, milestones, **validation evidence for each criterion**. | Updated at the end of each iteration; archived with the contract. |
-| `log.md` | **Append-only** chronological log. | One entry at the start and at the end of each action. |
-
-**Formats**:
-
-`feature_list.json` — `"status"` ∈ `pending | in_progress | completed` (+ allowed project extensions, e.g. `awaiting_playtest` — declare them in §7):
-
-```json
-{ "features": [ { "id": "F-01", "name": "…", "description": "technical scope",
-  "status": "pending | in_progress | completed", "dependencies": [] } ] }
+```bash
+uv run --no-project .agents/skills/agent-state/scripts/state_agents.py [--repo PATH] <command>
 ```
 
-`log.md` — **budget ~200 characters per entry** (details go in the commit):
+The dependency (`duckdb>=1.1.0`) is declared inside the script (PEP 723): uv builds and caches an isolated environment — no global install. Tables: `features` (pending | in_progress | completed), `contract_criteria` + `contract_meta` (frozen validation contract, 15-30 criteria, test command), `sprint_progress` (objective + milestones), `execution_log` (append-only event log; no rotation, no archive). **Proportionality**: the ledger is for feature suites — a question or a one-off fix does not open a sprint (one log entry is enough if the ledger exists). The database is committed to git (source of truth); only `*.duckdb.wal` is ignored. A legacy 4-file ledger (`feature_list*.json`, `contract.md`, `progress.md`, `log.md`) is auto-migrated with backup on the first `bootstrap`.
 
-```markdown
-## [YYYY-MM-DD] init | Workspace initialization and contract.md negotiation.
-## [YYYY-MM-DD] gen  | Wrote the main script and generated the JSON structures.
-## [YYYY-MM-DD] eval | Contract validation failed on criterion 2.
-```
-
-`type` ∈ `init | gen | eval | fix | sync | done | err` (+ project extensions).
-
-**Log rotation** (context budget): `log.md` holds only the current month. On month change (or beyond ~150 KB), move the history to `docs/journal/log_YYYY-MM[_DD-DD].md` — nothing is erased, the archive stays greppable. **At bootstrap: read only `log.md` (short); archives only via targeted `grep`.** *Variant B (declare in §7): event history in a database (DuckDB/SQLite) instead of the flat file — same discipline, no .md log.*
+1. **Bootstrap** — on every start, crash or restart, run `bootstrap`: bounded state (active features, sprint, contract, the last 20 log entries). Never query the full history unfiltered — use `search-log`.
+2. **Action** — `log <type> "<message>"` (type ∈ init | gen | eval | fix | sync | done | err, ~200 chars) at the start and at the end of each action.
+3. **Sync** — update `feature`, `step`, `contract` immediately after each write or test.
+4. **Errors** — on exception or interruption, run `bootstrap` again: the last committed transaction is the valid state.
 
 ## §3 Execution loop
 
-1. **Bootstrap** — check the 4 files; present → read them (budget: active items of `feature_list.json`, `progress.md`, `contract.md`, `log.md` in full); absent → create them when a feature suite starts. Do NOT read archives except via targeted `grep`.
-2. **Action** — before running a task, write its line in `log.md`.
+1. **Bootstrap** — `bootstrap` (§2); a feature suite starting on an empty ledger opens its sprint there (features, contract frozen BEFORE the first line of code).
+2. **Action** — log the task before running it (§2).
 3. **Gate** — a failing static check **forbids** syncing the ledger (compiler/linter green first — never claim "check OK" without running it). Verification tools pinned to a version, identical locally and in CI.
-4. **Sync** — after each write or test, update the associated status file.
-5. **Errors** — on exception or interruption, the valid state = last `log.md` entry + `progress.md` assertions.
-6. **Closure** — finished features archived, contract and `progress.md` archived, `done` entry; report to the user: done · verified (how) · not verified.
+4. **Sync** — after each write or test, update the ledger (§2).
+5. **Errors** — on exception or interruption, `bootstrap` again (§2).
+6. **Closure** — features marked completed, sprint `step reset`, `done` log entry; report to the user: done · verified (how) · not verified.
 
 ## §4 Git & delivery
 
@@ -97,7 +80,7 @@ Never rely on the context window alone: it degrades, gets compressed, gets erase
 *(1 paragraph: what the project does, what it does not do)*
 
 ### Declared locations (deviations from the common block)
-- Ledger: `root` | `.agents/` | `memory-bank/`; log variant: `.md file` | `B: DuckDB/SQLite database`
+- Ledger: `.agent/state.duckdb` via the agent-state skill (migrated to DuckDB on 2026-10-16 by agents-kit; legacy files archived in `.agent/legacy_markdown_backup/`).
 - Extended statuses: *(e.g. `awaiting_playtest`)*; extended log types: *(e.g. `rot`, `plan`)*
 - Machine / shell: Windows + Git Bash (default) | PowerShell 7 | WSL / Linux; commands required/forbidden in this repo
 - Language deviation: *(default from §1: repository content in English, chat replies to the user in French)*
