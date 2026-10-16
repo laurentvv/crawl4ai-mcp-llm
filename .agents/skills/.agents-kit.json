@@ -224,7 +224,7 @@
     },
     "frontend-design": {
       "source": "anthropics/claude-plugins-official",
-      "ref": "763beda0edf036f9149948499928dba6baf1af26",
+      "ref": "ea10b213686c90bb1984b2016937310e05336cf3",
       "files": {
         "LICENSE.txt": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
         "SKILL.md": "d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3"
@@ -278,7 +278,7 @@
     },
     "moli-webfetch": {
       "source": "lexmount/moli",
-      "ref": "53111bf02f2d17a4fa52dc2ee6bebc863fe2f994",
+      "ref": "9279ef478a65874ae1f7b4d744d6260a1bb709b4",
       "files": {
         "SKILL.md": "2bad2f4f24eb6396c4f0872756c605eb93fbe821aa9f53802b817e9e3a1fbc89",
         "agents/openai.yaml": "d331d49b7637f0a5bc2ae60dd323aa9535196739a2dd3ebd9b48b556ee9ea562",
@@ -361,7 +361,7 @@
     },
     "skill-creator": {
       "source": "anthropics/claude-plugins-official",
-      "ref": "763beda0edf036f9149948499928dba6baf1af26",
+      "ref": "ea10b213686c90bb1984b2016937310e05336cf3",
       "files": {
         "LICENSE.txt": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd",
         "SKILL.md": "dcd4803e61e913e6fc27294184cd3a71f09f5e924ff20c8a9a20173e7b3c2bcf",
@@ -406,7 +406,7 @@
     },
     "using-superpowers": {
       "source": "obra/superpowers",
-      "ref": "8ca22dba9a94f28898bbce59f2537ff4d87c747d",
+      "ref": "bb92a77741419a4ab5f06e711a283343f1ada0c3",
       "files": {
         "SKILL.md": "82c5c8866ad7f5dd4440ce66bd7806ba48a2f13771beae5cf112e53f08fe36ba",
         "references/antigravity-tools.md": "4880f6de3da4e32f9659ebe7a72b9e0ebfff04e028c2ed96173f86d0387a04c0",
