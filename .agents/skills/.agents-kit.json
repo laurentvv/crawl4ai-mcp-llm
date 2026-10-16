@@ -351,6 +351,22 @@
         "STANDARDS.md": "e7d3605034acda54ca13e43aec9e64d65b53de20f75b11b8d694e373012fbe07"
       }
     },
+    "rust-best-practices": {
+      "source": "apollographql/skills",
+      "ref": "aafc8944365a766d48cc519ce8b8575f93f953a4",
+      "files": {
+        "SKILL.md": "b1651a95a2c36a8350c033449f52d07eebfdbf08e3bd1d5b22c4b7f55f7aa17c",
+        "references/chapter_01.md": "def0d5dc6ad2c8e143aed03c888c3f55b7f2b8f245c563e970f8fa951f7d7b52",
+        "references/chapter_02.md": "3b5d4ad26ce444770a05d91f737cc48417cb5bac94b2ab1587fc8de536bdcbb9",
+        "references/chapter_03.md": "fd673405cc1b5094d44d59eac4634e35525d7103d34b43178ee37277f392e15f",
+        "references/chapter_04.md": "5189a1118c41c25426357a14ad4e651e931443f1aefc241ea79689cb694175bf",
+        "references/chapter_05.md": "fb753a7515e11c1bc84d853d8b6d3442dd810d607f2b153595248d57232b8d38",
+        "references/chapter_06.md": "cff0a6826a23a9c4337700757cc67f4741aa4be81cd56925601b110752d38534",
+        "references/chapter_07.md": "be71105ee9123fe2dff6673d85fc854eafd281fbfa6e8778216d3f3a8d0ffaad",
+        "references/chapter_08.md": "54c1548a28586ebb373fe508ce0d885d78bc83e579aabd89836d2a53f7129a8b",
+        "references/chapter_09.md": "bdd59af111d402e4385c77e26fa6d53fc113e40ef678a9cf7aaff221e5c21917"
+      }
+    },
     "rust-refactoring": {
       "source": "(authored)",
       "ref": "2026-10-11",
