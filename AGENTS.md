@@ -3,7 +3,7 @@
 > Instructions for any AI coding agent working in this repository.
 > Structure: **common block** (delimited, resyncable) + **project-specific part** (free).
 
-<!-- BEGIN:agents-common v3.0 — block shared across repositories (agents-kit). Do not edit by hand: resync with scripts/sync_agents.py -->
+<!-- BEGIN:agents-common v3.1 — block shared across repositories (agents-kit). Do not edit by hand: resync with scripts/sync_agents.py -->
 <!-- The script only replaces what lies between the BEGIN/END markers; all repository-specific content is preserved -->
 
 > **Priority on conflict**: explicit user instruction > this repo's §7 > this common block. The §5 prohibitions are lifted only on a formal explicit request. This block is overwritten on every sync: add nothing here (lessons → §7, see §6).
@@ -26,7 +26,7 @@ Never rely on the context window alone: it degrades, gets compressed, gets erase
 uv run --no-project .agents/skills/agent-state/scripts/state_agents.py [--repo PATH] <command>
 ```
 
-The dependency (`duckdb>=1.1.0`) is declared inside the script (PEP 723): uv builds and caches an isolated environment — no global install. Tables: `features` (pending | in_progress | completed), `contract_criteria` + `contract_meta` (frozen validation contract, 15-30 criteria, test command), `sprint_progress` (objective + milestones), `execution_log` (append-only event log; no rotation, no archive). **Proportionality**: the ledger is for feature suites — a question or a one-off fix does not open a sprint (one log entry is enough if the ledger exists). The database is committed to git (source of truth); only `*.duckdb.wal` is ignored. A legacy 4-file ledger (`feature_list*.json`, `contract.md`, `progress.md`, `log.md`) is auto-migrated with backup on the first `bootstrap`.
+The dependency (`duckdb>=1.1.0`) is declared inside the script (PEP 723): uv builds and caches an isolated environment — no global install. Tables: `features` (pending | in_progress | completed), `contract_criteria` + `contract_meta` (frozen validation contract, 15-30 criteria, test command), `sprint_progress` (objective + milestones), `execution_log` (append-only event log; no rotation, no archive). **Proportionality**: the ledger is for feature suites — a question or a one-off fix does not open a sprint (one log entry is enough if the ledger exists). The database stays local: `.agent/` and `.agents/` are git-ignored from initialization and never committed (heavy binary, installed scripts — they would bloat public repositories and skew their language stats). A legacy 4-file ledger (`feature_list*.json`, `contract.md`, `progress.md`, `log.md`) is auto-migrated with backup on the first `bootstrap`.
 
 1. **Bootstrap** — on every start, crash or restart, run `bootstrap`: bounded state (active features, sprint, contract, the last 20 log entries). Never query the full history unfiltered — use `search-log`.
 2. **Action** — `log <type> "<message>"` (type ∈ init | gen | eval | fix | sync | done | err, ~200 chars) at the start and at the end of each action.
