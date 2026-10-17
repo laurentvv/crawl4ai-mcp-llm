@@ -49,3 +49,6 @@ htmlcov/
 # Agent scratch area (docs-fishing snapshots, local audit artifacts)
 scratch/
 .agent/*.duckdb.wal
+# Agent local state (ledger, installed skills) - kept on disk, never committed
+.agent/
+.agents/
