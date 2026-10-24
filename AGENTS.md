@@ -3,7 +3,7 @@
 > Instructions for any AI coding agent working in this repository.
 > Structure: **common block** (delimited, resyncable) + **project-specific part** (free).
 
-<!-- BEGIN:agents-common v3.1 — block shared across repositories (agents-kit). Do not edit by hand: resync with scripts/sync_agents.py -->
+<!-- BEGIN:agents-common v3.2 — block shared across repositories (agents-kit). Do not edit by hand: resync with scripts/sync_agents.py -->
 <!-- The script only replaces what lies between the BEGIN/END markers; all repository-specific content is preserved -->
 
 > **Priority on conflict**: explicit user instruction > this repo's §7 > this common block. The §5 prohibitions are lifted only on a formal explicit request. This block is overwritten on every sync: add nothing here (lessons → §7, see §6).
@@ -45,6 +45,9 @@ The dependency (`duckdb>=1.1.0`) is declared inside the script (PEP 723): uv bui
 ## §4 Git & delivery
 
 - **Never work or push directly on the default branch** (`main`/`master`): `feat/…` or `fix/…` branch before any change.
+- **PRs stay small and deterministic**: one PR, one self-contained change — declared scope, no drive-by edits, green tests; the whole diff is reviewable in one pass and rebuildable from the branch alone.
+- **Agents review the PRs**: an orchestrator agent dispatches review agents on every submitted PR (diff + checklist); their findings are folded back into the branch before human review.
+- **Stacked delivery on long arcs**: long work is cut into a series of small end-to-end PRs, each green and mergeable on its own and stacked on the previous one — never one long-lived branch piling up unreviewed work.
 - Once the PR is submitted: **stop** (no waiting loop); merge only on explicit instruction.
 - **Never a destructive git command on live work**: `reset --hard`, `clean -fd`, `checkout -- .` / `restore .`, `push --force` on a shared branch. To undo a test commit: `git reset --soft HEAD~1`, then targeted cleanup.
 - Push only on the user's explicit request.
