@@ -12,6 +12,7 @@ MAX_CONCURRENT_CRAWLS_ENV = "CRAWL4AI_MCP_MAX_CONCURRENT_CRAWLS"
 VERBOSE_ENV = "CRAWL4AI_MCP_VERBOSE"
 LOG_LEVEL_ENV = "CRAWL4AI_MCP_LOG_LEVEL"
 SESSION_TTL_ENV = "CRAWL4AI_MCP_SESSION_TTL"
+UI_DIR_ENV = "CRAWL4AI_MCP_UI_DIR"
 
 DEFAULT_RESULTS_DIR = "~/.crawl4ai_mcp_llm/results"
 DEFAULT_CRAWL_TIMEOUT = 300.0
@@ -47,6 +48,7 @@ class Settings:
     verbose: bool
     log_level: str
     session_ttl: float
+    ui_dir: Path | None = None
 
 
 def get_settings() -> Settings:
@@ -56,6 +58,7 @@ def get_settings() -> Settings:
     environment changes (and lets tests override variables with monkeypatch).
     """
     results_dir = os.getenv(RESULTS_DIR_ENV) or DEFAULT_RESULTS_DIR
+    raw_ui_dir = os.getenv(UI_DIR_ENV)
     return Settings(
         results_dir=Path(results_dir).expanduser().resolve(),
         allow_js=_env_bool(ALLOW_JS_ENV),
@@ -65,4 +68,5 @@ def get_settings() -> Settings:
         verbose=_env_bool(VERBOSE_ENV),
         log_level=(os.getenv(LOG_LEVEL_ENV) or "INFO").upper(),
         session_ttl=_env_number(SESSION_TTL_ENV, DEFAULT_SESSION_TTL, float),
+        ui_dir=Path(raw_ui_dir).expanduser().resolve() if raw_ui_dir else None,
     )

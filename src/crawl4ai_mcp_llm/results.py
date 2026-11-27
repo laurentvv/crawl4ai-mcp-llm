@@ -27,13 +27,33 @@ class ResultNotFoundError(LookupError):
     """Raised when a result path is invalid or does not exist."""
 
 
-def result_uri(file_path: str | Path, results_dir: Path) -> str | None:
-    """Return the resource URI of a saved result, or None if it is outside ``results_dir``."""
+def relative_result_name(file_path: str | Path, results_dir: Path) -> str | None:
+    """Return the POSIX path of a saved result relative to ``results_dir``, or None."""
     path = Path(file_path)
     if not is_safe_path(path, results_dir):
         return None
-    relative = Path(path).resolve().relative_to(results_dir.resolve())
-    return RESULT_URI_PREFIX + relative.as_posix()
+    return path.resolve().relative_to(results_dir.resolve()).as_posix()
+
+
+def result_uri(file_path: str | Path, results_dir: Path) -> str | None:
+    """Return the resource URI of a saved result, or None if it is outside ``results_dir``."""
+    relative = relative_result_name(file_path, results_dir)
+    return RESULT_URI_PREFIX + relative if relative is not None else None
+
+
+def result_file_uri(relative_path: str, results_dir: Path) -> str:
+    """Return the ``file://`` URI of a validated result inside ``results_dir``."""
+    return _resolve_result_path(relative_path, results_dir).resolve().as_uri()
+
+
+def path_to_file_uri(file_path: str | Path | None) -> str | None:
+    """Convert an existing or target filesystem path to a ``file://`` URI."""
+    if not file_path:
+        return None
+    try:
+        return Path(file_path).resolve().as_uri()
+    except ValueError:
+        return None
 
 
 def _resolve_result_path(relative_path: str, results_dir: Path) -> Path:

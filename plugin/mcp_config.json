@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "crawler": {
+      "command": "uvx",
+      "args": [
+        "--python",
+        "3.13",
+        "crawl4ai-mcp-llm@latest"
+      ]
+    }
+  }
+}

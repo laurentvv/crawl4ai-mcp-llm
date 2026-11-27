@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-27
+
+### Added
+- Interactive **MCP Apps** support (`io.modelcontextprotocol/ui` + Antigravity `com.google.antigravity/ui`):
+  - Inline crawl card UI (`ui://crawl4ai/crawl-card.html`) attached to `crawl` and `crawl_page` with `structuredContent` alongside existing plain-text responses.
+  - Side-panel (`aux_pane`) and full-page (`global`) **Crawl4AI Explorer** (`open_crawl_explorer`, `ui://crawl4ai/explorer.html`) to browse saved Markdown results (paginated at 200 items with server-side search to stay well under the 1 MiB trajectory cap), run new crawls, and manage browser sessions.
+  - Read-only app helpers (`app_list_results` with `query`/`offset`/`limit`, `app_read_result`, `visibility: ["app"]`) for paginated listings and on-demand full Markdown loading.
+  - `CRAWL4AI_MCP_UI_DIR` environment variable to override packaged HTML bundles during local UI iteration.
+  - Antigravity plugin packaging under `plugin/` (`plugin.json`, `mcp_config.json`, `assets/logo.svg`).
+
 ## [0.2.2] - 2026-09-24
 
 ### Documentation

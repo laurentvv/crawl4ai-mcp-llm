@@ -20,6 +20,7 @@ A powerful web crawling tool that integrates with AI assistants via the MCP (Mod
 - Detailed crawl result statistics, including the list of skipped pages
 - Live progress notifications during long crawls
 - Saved results exposed as MCP resources (`crawl://results/...`)
+- **Interactive MCP Apps (Antigravity / SEP-1865)**: inline crawl cards for `crawl` / `crawl_page` and a side-panel / full-page **Crawl4AI Explorer** (`open_crawl_explorer`), while keeping full plain-text compatibility for non-UI MCP clients
 - Error and not found page handling
 - Secure by default: only public http(s) URLs, JavaScript disabled unless you opt in
 - **Advanced Scraping Capabilities**:
@@ -120,14 +121,18 @@ Once configured, you can use the crawler by asking your AI assistant to perform 
 
 | Tool | Purpose |
 |------|---------|
-| `crawl` | Crawl a site (following links up to `max_depth`/`max_pages`), save the result as Markdown and return a summary with the content |
-| `crawl_page` | Fetch exactly one page and return its Markdown, without following links or writing any file (faster for "read this page" requests) |
+| `crawl` | Crawl a site (following links up to `max_depth`/`max_pages`), save the result as Markdown and return a summary with the content (renders an inline MCP App card on supporting hosts) |
+| `crawl_page` | Fetch exactly one page and return its Markdown, without following links or writing any file (faster for "read this page" requests; renders an inline MCP App card) |
 | `close_session` | Close a browser session opened with `session_id` (idle sessions are also closed automatically after `CRAWL4AI_MCP_SESSION_TTL`) |
+| `open_crawl_explorer` | Open the interactive Crawl4AI Explorer (`aux_pane` side panel / `global` full-page view) to browse saved results, launch crawls, and manage sessions |
+| `app_list_results` / `app_read_result` | Read-only app helpers (`visibility: ["app"]`) used by the MCP App UI to load result listings and full Markdown files on demand |
 
 | Resource | Content |
 |----------|---------|
 | `crawl://results` | JSON list of saved results (URI, name, size, date, source URL), newest first |
 | `crawl://results/{path}` | Full Markdown of a saved result, e.g. `crawl://results/crawl_example_com_20260101_120000_ab12cd.md` |
+| `ui://crawl4ai/crawl-card.html` | Single-file MCP App HTML bundle (`text/html;profile=mcp-app`) for inline crawl cards |
+| `ui://crawl4ai/explorer.html` | Single-file MCP App HTML bundle (`text/html;profile=mcp-app`) for the Crawl4AI Explorer view |
 
 The `crawl` response includes the resource URI of its result: when the returned content is truncated, the assistant can read the complete file through that resource even if it has no access to the server's file system.
 
@@ -168,6 +173,7 @@ Set these in the `env` section of your MCP configuration:
 | `CRAWL4AI_MCP_SESSION_TTL` | Seconds after which an unused browser session (`session_id`) is closed | `1800` |
 | `CRAWL4AI_MCP_VERBOSE` | Enable crawl4ai's detailed progress logs (on stderr) | `false` |
 | `CRAWL4AI_MCP_LOG_LEVEL` | Server log level (`DEBUG`, `INFO`, `WARNING`, ...) | `INFO` |
+| `CRAWL4AI_MCP_UI_DIR` | Optional directory overriding bundled MCP App HTML files for fast local UI iteration | packaged assets |
 
 ## 🔒 Security
 
@@ -210,6 +216,17 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy
 5. Run the MCP server directly (for standard usage):
 ```bash
 uv run crawl4ai-mcp-llm
+```
+
+6. Rebuild the MCP App UI bundles (requires Node.js 20+):
+```bash
+cd ui && npm install && npm run typecheck && npm run build
+```
+
+7. Validate or install the Antigravity plugin bundle (`plugin/`):
+```bash
+agy plugin validate ./plugin --strict
+agy plugin install ./plugin
 ```
 
 Changes are listed in [CHANGELOG.md](CHANGELOG.md).

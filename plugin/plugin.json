@@ -1,0 +1,14 @@
+{
+  "name": "crawl4ai-mcp-llm",
+  "displayName": "Crawl4AI MCP",
+  "version": "0.3.0",
+  "description": "Crawl websites and single web pages into clean Markdown with interactive inline crawl cards and a Crawl4AI Explorer side panel.",
+  "logo": "assets/logo.svg",
+  "homepage": "https://github.com/laurentvv/crawl4ai-mcp-llm",
+  "repository": "https://github.com/laurentvv/crawl4ai-mcp-llm",
+  "suggestedPrompts": [
+    "Fetch https://docs.python.org/3/library/re.html and summarize the key functions",
+    "Open the Crawl4AI Explorer to browse my saved crawls",
+    "Crawl https://example.com with max_depth=1 and list the extracted links"
+  ]
+}

@@ -258,7 +258,11 @@ async def test_result_resources_through_mcp(saved_results):
     templates = await app.list_resource_templates()
     resources = await app.list_resources()
     assert [t.uri_template for t in templates] == ["crawl://results/{+path}"]
-    assert [str(r.uri) for r in resources] == ["crawl://results"]
+    assert sorted(str(r.uri) for r in resources) == [
+        "crawl://results",
+        "ui://crawl4ai/crawl-card.html",
+        "ui://crawl4ai/explorer.html",
+    ]
 
     listing = list(await app.read_resource("crawl://results"))
     assert "crawl://results/sub/b.md" in listing[0].content
