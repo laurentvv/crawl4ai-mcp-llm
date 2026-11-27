@@ -58,7 +58,7 @@ def get_settings() -> Settings:
     environment changes (and lets tests override variables with monkeypatch).
     """
     results_dir = os.getenv(RESULTS_DIR_ENV) or DEFAULT_RESULTS_DIR
-    raw_ui_dir = os.getenv(UI_DIR_ENV)
+    raw_ui_dir = (os.getenv(UI_DIR_ENV) or "").strip()
     return Settings(
         results_dir=Path(results_dir).expanduser().resolve(),
         allow_js=_env_bool(ALLOW_JS_ENV),

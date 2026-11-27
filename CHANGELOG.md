@@ -10,10 +10,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and 
 ### Added
 - Interactive **MCP Apps** support (`io.modelcontextprotocol/ui` + Antigravity `com.google.antigravity/ui`):
   - Inline crawl card UI (`ui://crawl4ai/crawl-card.html`) attached to `crawl` and `crawl_page` with `structuredContent` alongside existing plain-text responses.
-  - Side-panel (`aux_pane`) and full-page (`global`) **Crawl4AI Explorer** (`open_crawl_explorer`, `ui://crawl4ai/explorer.html`) to browse saved Markdown results (paginated at 200 items with server-side search to stay well under the 1 MiB trajectory cap), run new crawls, and manage browser sessions.
-  - Read-only app helpers (`app_list_results` with `query`/`offset`/`limit`, `app_read_result`, `visibility: ["app"]`) for paginated listings and on-demand full Markdown loading.
+  - Side-panel (`aux_pane`) and full-page (`global`) **Crawl4AI Explorer** (`open_crawl_explorer`, `ui://crawl4ai/explorer.html`) to browse saved Markdown results (paginated at 200 items with server-side filename/URL and full-text search), navigate multi-page crawls per page (with per-page copy/attach/re-crawl), run new crawls, and manage browser sessions.
+  - Custom Antigravity file viewer (`view_crawl_file`, `ui://crawl4ai/file-viewer.html`, `entrypoint: file` for `.crawlmd` / `.crawl.md`) with page TOC, metadata, and one-click live re-crawl.
+  - Read-only app helpers (`app_list_results` with `query`/`offset`/`limit`, `app_search_results` for full-text search, `app_read_result`, `visibility: ["app"]`).
+  - Glob URL filtering on `crawl` via `include_patterns` and `exclude_patterns` (`PatternURLFilter`).
+  - Frontend Vitest unit test suite (`ui/src/shared.test.ts`) verifying Markdown XSS protection and multi-page crawl parsing.
   - `CRAWL4AI_MCP_UI_DIR` environment variable to override packaged HTML bundles during local UI iteration.
   - Antigravity plugin packaging under `plugin/` (`plugin.json`, `mcp_config.json`, `assets/logo.svg`).
+
+### Changed
+- Upgraded locked Python dependencies to latest compatible releases (`crawl4ai` 0.9.6, `mcp` 2.3.0, `playwright` 1.65.2, `pydantic` 2.14.4, `anyio` 4.16.0, `ruff` 0.17.6, `mypy` 2.4.1, `pytest` 9.2.0; `pip-audit` clean) and raised `mcp` floor to `>=2.2.0,<3`.
+- Sped up `list_results()` on large result folders by running the scan in a single worker thread and caching `source_url` headers by `(path, mtime_ns, size)`.
+- Markdown page timestamps now use explicit UTC ISO-8601 (`datetime.now(UTC)`).
+
+### Fixed
+- `sanitize_for_display()` now actually applies its ASCII/Unicode translation table instead of catching an unreachable UTF-8 `UnicodeEncodeError`.
+- Bare domains passed to `crawl` / `crawl_page` (e.g. `example.com`) now surface as normalized `https://` URLs in both the text summary and inline card.
+- Guarded `CrawlerManager.close()` with the startup lock and `Explorer` document loads with a sequence guard against out-of-order responses.
+- Protected inline code spans and added ordered-list / empty-bullet handling in the MCP App safe Markdown renderer.
 
 ## [0.2.2] - 2026-09-24
 

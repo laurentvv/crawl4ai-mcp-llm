@@ -11,10 +11,12 @@ from .security import is_safe_path
 UI_MIME_TYPE = "text/html;profile=mcp-app"
 CRAWL_CARD_FILENAME = "crawl-card.html"
 EXPLORER_FILENAME = "explorer.html"
+FILE_VIEWER_FILENAME = "file-viewer.html"
 CRAWL_CARD_URI = f"ui://crawl4ai/{CRAWL_CARD_FILENAME}"
 EXPLORER_URI = f"ui://crawl4ai/{EXPLORER_FILENAME}"
+FILE_VIEWER_URI = f"ui://crawl4ai/{FILE_VIEWER_FILENAME}"
 
-_ALLOWED_UI_FILES = frozenset({CRAWL_CARD_FILENAME, EXPLORER_FILENAME})
+_ALLOWED_UI_FILES = frozenset({CRAWL_CARD_FILENAME, EXPLORER_FILENAME, FILE_VIEWER_FILENAME})
 
 # Inline card rendered in the conversation stream for crawl / crawl_page.
 CRAWL_CARD_META: dict[str, Any] = {
@@ -28,6 +30,20 @@ EXPLORER_META: dict[str, Any] = {
         "entrypoints": [
             {"type": "aux_pane", "title": "Crawl4AI Explorer"},
             {"type": "global", "title": "Crawl4AI Explorer"},
+        ]
+    },
+}
+
+# Host-invoked custom file viewer for Crawl4AI exports (always hidden from the model).
+FILE_VIEWER_META: dict[str, Any] = {
+    "ui": {"resourceUri": FILE_VIEWER_URI},
+    "com.google.antigravity/ui": {
+        "entrypoints": [
+            {
+                "type": "file",
+                "title": "Crawl4AI Viewer",
+                "extensions": [".crawlmd", ".crawl.md"],
+            }
         ]
     },
 }

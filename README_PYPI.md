@@ -15,10 +15,15 @@ A powerful web crawling tool that integrates with AI assistants via the MCP (Mod
 - Detailed crawl result statistics, including the list of skipped pages
 - Live progress notifications during long crawls
 - Saved results exposed as MCP resources (`crawl://results/...`)
-- **Interactive MCP Apps (Antigravity / SEP-1865)**: inline crawl cards for `crawl` / `crawl_page` and a side-panel / full-page **Crawl4AI Explorer** (`open_crawl_explorer`), while keeping full plain-text compatibility for non-UI MCP clients
+- **Interactive MCP Apps (Antigravity / SEP-1865)** — pre-bundled in the wheel (no Node.js required):
+  - **Inline Crawl Cards** on `crawl` and `crawl_page` (status, KPIs, rendered/raw Markdown, filterable links, skipped pages, one-click attach)
+  - **Crawl4AI Explorer** (`open_crawl_explorer`, side panel & full page): paginated saved-results browser, filename/URL & **full-text search**, **per-page TOC** (copy/attach a single crawled page), interactive crawl launcher, and session manager
+  - **Custom File Viewer** (`view_crawl_file` for `.crawlmd` / `.crawl.md`): per-page TOC, metadata, and one-click live re-crawl
+  - 100% backward-compatible plain-text responses for non-UI MCP clients (Claude Desktop, Claude Code, Cline, Antigravity CLI)
 - Error and not found page handling
 - Secure by default: only public http(s) URLs, JavaScript disabled unless you opt in
 - **Advanced Scraping Capabilities**:
+  - **URL Glob Filtering**: target or skip paths during deep crawls with `include_patterns` and `exclude_patterns`
   - **Magic Mode**: crawl4ai heuristics that simulate a real browser and help with some anti-bot protections (not a guaranteed bypass)
   - **Targeted Extraction**: Fetch only what you need using CSS selectors
   - **Custom JavaScript** (opt-in): Execute code before extraction (clicks, scrolls, form fills)
@@ -63,6 +68,15 @@ Add the following to your AI Assistant's MCP configuration file (e.g., `cline_mc
 claude mcp add crawl -s user -- uvx --python 3.13 crawl4ai-mcp-llm@latest
 ```
 
+**Google Antigravity (with interactive MCP Apps):**
+
+Configure via `mcp_config.json` (same `uvx` block above) or install the bundled plugin from the repository:
+
+```bash
+agy plugin validate ./plugin --strict
+agy plugin install ./plugin
+```
+
 ### Important: Browser Installation
 
 The crawler uses Playwright to handle dynamic content. Install Chromium once after setting up the tool:
@@ -87,6 +101,8 @@ Once configured, you can use the crawler by asking your AI assistant to perform 
 - **Dynamic Content**: "Crawl this React app and wait for the `.main-content` selector to load."
 - **Anti-bot Heuristics**: "Crawl example.com with magic mode enabled."
 - **Targeted Extraction**: "Crawl the docs site but only extract content matching the `h1, p.lead` CSS selector."
+- **URL Filtering**: "Crawl https://example.com with `include_patterns=['/docs/*']` and `exclude_patterns=['/docs/legacy/*', '*.pdf']`."
+- **Interactive Explorer (Antigravity)**: "Open the Crawl4AI Explorer to search my saved crawls."
 
 ## 🧰 Tools and Resources
 
@@ -95,8 +111,9 @@ Once configured, you can use the crawler by asking your AI assistant to perform 
 | `crawl` | Crawl a site (following links up to `max_depth`/`max_pages`), save the result as Markdown and return a summary with the content (renders an inline MCP App card on supporting hosts) |
 | `crawl_page` | Fetch exactly one page and return its Markdown, without following links or writing any file (faster for "read this page" requests; renders an inline MCP App card) |
 | `close_session` | Close a browser session opened with `session_id` (idle sessions are also closed automatically after `CRAWL4AI_MCP_SESSION_TTL`) |
-| `open_crawl_explorer` | Open the interactive Crawl4AI Explorer (`aux_pane` side panel / `global` full-page view) to browse saved results, launch crawls, and manage sessions |
-| `app_list_results` / `app_read_result` | Read-only app helpers (`visibility: ["app"]`) used by the MCP App UI to load result listings and full Markdown files on demand |
+| `open_crawl_explorer` | Open the interactive Crawl4AI Explorer (`aux_pane` side panel / `global` full-page view) to browse/search saved results, inspect individual crawled pages, launch crawls, and manage sessions |
+| `view_crawl_file` | Host-invoked Antigravity custom file viewer (`entrypoint: file`) for `.crawlmd` / `.crawl.md` exports |
+| `app_list_results` / `app_read_result` / `app_search_results` | Read-only app helpers (`visibility: ["app"]`) for paginated listings, full-text search, and on-demand full Markdown loading |
 
 | Resource | Content |
 |----------|---------|
@@ -104,6 +121,7 @@ Once configured, you can use the crawler by asking your AI assistant to perform 
 | `crawl://results/{path}` | Full Markdown of a saved result, e.g. `crawl://results/crawl_example_com_20260101_120000_ab12cd.md` |
 | `ui://crawl4ai/crawl-card.html` | Single-file MCP App HTML bundle (`text/html;profile=mcp-app`) for inline crawl cards |
 | `ui://crawl4ai/explorer.html` | Single-file MCP App HTML bundle (`text/html;profile=mcp-app`) for the Crawl4AI Explorer view |
+| `ui://crawl4ai/file-viewer.html` | Single-file MCP App HTML bundle (`text/html;profile=mcp-app`) for the `.crawlmd` / `.crawl.md` file viewer |
 
 The `crawl` response includes the resource URI of its result: when the returned content is truncated, the assistant can read the complete file through that resource even if it has no access to the server's file system.
 
@@ -129,6 +147,8 @@ The `crawl` tool accepts the following parameters (`crawl_page` accepts `url`, `
 | `js_code` | string | Custom JavaScript code to execute before extraction (requires `CRAWL4AI_MCP_ALLOW_JS=true`) | None |
 | `session_id` | string | Reuse cookies and browser state across calls with the same id | None |
 | `delay_before_return_html` | number | Delay in seconds (0-60) before extracting HTML (useful for heavy JS pages) | None |
+| `include_patterns` | array of strings | Only follow URLs matching at least one glob pattern (e.g. `["/docs/*", "*/api/*"]`) | None |
+| `exclude_patterns` | array of strings | Skip URLs matching any glob pattern (e.g. `["/blog/*", "*.pdf"]`); overrides `include_patterns` | None |
 
 ## ⚙️ Configuration (environment variables)
 

@@ -9,13 +9,18 @@ import {
   formatDate,
   isSafeHttpUrl,
   openFileInAuxPane,
+  parseCrawledDocument,
+  parsePatternInput,
   renderSafeMarkdown,
   wireExternalLinks,
   type CrawlCardPayload,
+  type CrawledPageSection,
   type ExplorerPayload,
   type ListResultsPayload,
   type ReadResultPayload,
   type SavedResultEntry,
+  type SearchMatch,
+  type SearchResultsPayload,
 } from './shared';
 
 const root = document.getElementById('root')!;
@@ -25,6 +30,8 @@ interface ExplorerState {
   connected: boolean;
   activeTab: 'results' | 'crawl' | 'sessions';
   results: SavedResultEntry[];
+  searchMatches: SearchMatch[];
+  searchMode: 'meta' | 'fulltext';
   totalResults: number;
   totalAll: number;
   hasMore: boolean;
@@ -33,6 +40,8 @@ interface ExplorerState {
   searchQuery: string;
   selectedName: string | null;
   selectedDoc: ReadResultPayload | null;
+  docSections: CrawledPageSection[];
+  selectedPageIndex: number; // -1 = full document, >=0 = specific crawled page
   loadingList: boolean;
   loadingDoc: boolean;
   docError: string | null;
@@ -45,6 +54,8 @@ interface ExplorerState {
   formCssSelector: string;
   formWaitFor: string;
   formOutputFile: string;
+  formIncludePatterns: string;
+  formExcludePatterns: string;
   formMagic: boolean;
   formIncludeExternal: boolean;
   formOverwrite: boolean;
@@ -58,6 +69,8 @@ const state: ExplorerState = {
   connected: false,
   activeTab: 'results',
   results: [],
+  searchMatches: [],
+  searchMode: 'meta',
   totalResults: 0,
   totalAll: 0,
   hasMore: false,
@@ -66,6 +79,8 @@ const state: ExplorerState = {
   searchQuery: '',
   selectedName: null,
   selectedDoc: null,
+  docSections: [],
+  selectedPageIndex: -1,
   loadingList: false,
   loadingDoc: false,
   docError: null,
@@ -77,6 +92,8 @@ const state: ExplorerState = {
   formCssSelector: '',
   formWaitFor: '',
   formOutputFile: '',
+  formIncludePatterns: '',
+  formExcludePatterns: '',
   formMagic: false,
   formIncludeExternal: false,
   formOverwrite: false,
@@ -88,6 +105,7 @@ const state: ExplorerState = {
 
 let searchTimer: number | undefined;
 let listRequestSeq = 0;
+let docRequestSeq = 0;
 
 const app = new App({ name: 'Crawl4AI Explorer', version: '1.0.0' }, {});
 
@@ -104,9 +122,54 @@ function flashStatus(message: string): void {
   }, 2800);
 }
 
-async function refreshListing(selectName?: string, preserveFocus = false): Promise<void> {
+function restoreSearchFocus(): void {
+  const refocused = document.getElementById('results-search') as HTMLInputElement | null;
+  if (refocused) {
+    refocused.focus();
+    refocused.setSelectionRange(refocused.value.length, refocused.value.length);
+  }
+}
+
+async function runFullTextSearch(preserveFocus = false): Promise<void> {
+  const q = state.searchQuery.trim();
+  if (!q) {
+    state.searchMatches = [];
+    await refreshListing(undefined, preserveFocus);
+    return;
+  }
   const seq = ++listRequestSeq;
   state.loadingList = true;
+  if (!preserveFocus) render();
+  try {
+    const res = await app.callServerTool({
+      name: 'app_search_results',
+      arguments: { query: q, limit: 50 },
+    });
+    if (seq !== listRequestSeq) return;
+    if (!res.isError) {
+      const data = res.structuredContent as SearchResultsPayload | undefined;
+      state.searchMatches = data?.matches ?? [];
+    } else {
+      flashStatus(extractErrorMessage(res));
+    }
+  } catch {
+    if (seq === listRequestSeq) flashStatus('Full-text search failed');
+  } finally {
+    if (seq !== listRequestSeq) return;
+    state.loadingList = false;
+    render();
+    if (preserveFocus) restoreSearchFocus();
+  }
+}
+
+async function refreshListing(selectName?: string, preserveFocus = false): Promise<void> {
+  if (state.searchMode === 'fulltext' && state.searchQuery.trim()) {
+    await runFullTextSearch(preserveFocus);
+    return;
+  }
+  const seq = ++listRequestSeq;
+  state.loadingList = true;
+  state.searchMatches = [];
   if (!preserveFocus) render();
   try {
     const args: Record<string, unknown> = { offset: 0, limit: PAGE_SIZE };
@@ -122,7 +185,10 @@ async function refreshListing(selectName?: string, preserveFocus = false): Promi
       state.sessions = data?.sessions ?? [];
       if (selectName) {
         state.selectedName = selectName;
-      } else if (!state.selectedName || (!state.searchQuery.trim() && !state.results.some((r) => r.name === state.selectedName))) {
+      } else if (
+        !state.selectedName ||
+        (!state.searchQuery.trim() && !state.results.some((r) => r.name === state.selectedName))
+      ) {
         state.selectedName = state.results[0]?.name ?? null;
       }
     }
@@ -132,15 +198,17 @@ async function refreshListing(selectName?: string, preserveFocus = false): Promi
     if (seq !== listRequestSeq) return;
     state.loadingList = false;
     render();
-    if (preserveFocus) {
-      const refocused = document.getElementById('results-search') as HTMLInputElement | null;
-      if (refocused) {
-        refocused.focus();
-        refocused.setSelectionRange(refocused.value.length, refocused.value.length);
+    if (preserveFocus) restoreSearchFocus();
+    if (!preserveFocus) {
+      if (state.selectedName) {
+        void loadDocument(state.selectedName);
+      } else {
+        state.selectedDoc = null;
+        state.docSections = [];
+        state.selectedPageIndex = -1;
+        state.docError = null;
+        render();
       }
-    }
-    if (!preserveFocus && state.selectedName) {
-      void loadDocument(state.selectedName);
     }
   }
 }
@@ -173,27 +241,35 @@ async function loadMoreResults(): Promise<void> {
 }
 
 async function loadDocument(name: string): Promise<void> {
+  const seq = ++docRequestSeq;
   state.selectedName = name;
   state.loadingDoc = true;
   state.docError = null;
+  state.selectedPageIndex = -1;
   render();
   try {
     const res = await app.callServerTool({
       name: 'app_read_result',
       arguments: { name },
     });
+    if (seq !== docRequestSeq) return;
     if (res.isError) {
       state.selectedDoc = null;
+      state.docSections = [];
       state.docError = extractErrorMessage(res);
     } else {
       const data = res.structuredContent as ReadResultPayload | undefined;
       state.selectedDoc = data ?? null;
+      state.docSections = data ? parseCrawledDocument(data.content) : [];
       if (!data) state.docError = 'Empty result payload.';
     }
   } catch (err) {
+    if (seq !== docRequestSeq) return;
     state.selectedDoc = null;
+    state.docSections = [];
     state.docError = err instanceof Error ? err.message : 'Failed to read result.';
   } finally {
+    if (seq !== docRequestSeq) return;
     state.loadingDoc = false;
     render();
   }
@@ -222,6 +298,10 @@ async function runCrawlFromForm(): Promise<void> {
     args.include_external = state.formIncludeExternal;
     if (state.formOutputFile.trim()) args.output_file = state.formOutputFile.trim();
     if (state.formOverwrite) args.overwrite = true;
+    const includes = parsePatternInput(state.formIncludePatterns);
+    const excludes = parsePatternInput(state.formExcludePatterns);
+    if (includes.length) args.include_patterns = includes;
+    if (excludes.length) args.exclude_patterns = excludes;
   }
 
   try {
@@ -257,34 +337,59 @@ async function closeSession(sessionId: string): Promise<void> {
   }
 }
 
+function activePageSection(): CrawledPageSection | null {
+  if (state.selectedPageIndex < 0 || state.selectedPageIndex >= state.docSections.length) {
+    return null;
+  }
+  return state.docSections[state.selectedPageIndex];
+}
+
 function renderResultsTab(canMessage: boolean, canUpdateContext: boolean, canOpenLinks: boolean): string {
-  const filtered = state.results;
+  const isFullText = state.searchMode === 'fulltext' && state.searchQuery.trim().length > 0;
 
-  const listItemsHtml = filtered.length
-    ? filtered
-        .map(
-          (entry) => `
-          <button class="c4-result-row" data-select-result="${escapeHtml(entry.name)}" aria-current="${entry.name === state.selectedName}">
-            <span class="c4-result-name">${escapeHtml(entry.name)}</span>
-            ${entry.source_url ? `<span class="c4-list-item-sub">${escapeHtml(entry.source_url)}</span>` : ''}
-            <span class="c4-result-meta">
-              <span>${formatBytes(entry.size_bytes)}</span>
-              <span>${escapeHtml(formatDate(entry.modified))}</span>
-            </span>
-          </button>`,
-        )
-        .join('')
-    : `<div class="c4-empty">${state.searchQuery.trim() ? 'No results match your filter.' : 'No saved crawls yet. Use "New Crawl" to capture a site.'}</div>`;
+  let listHtml = '';
+  if (isFullText) {
+    listHtml = state.searchMatches.length
+      ? state.searchMatches
+          .map(
+            (m) => `
+            <button class="c4-result-row" data-select-result="${escapeHtml(m.name)}" aria-current="${m.name === state.selectedName}">
+              <span class="c4-result-name">${escapeHtml(m.name)}</span>
+              <span class="c4-snippet">${escapeHtml(m.snippet)}</span>
+              <span class="c4-result-meta">
+                <span>${m.match_count} match${m.match_count > 1 ? 'es' : ''} · L${m.line}</span>
+                <span>${formatBytes(m.size_bytes)}</span>
+              </span>
+            </button>`,
+          )
+          .join('')
+      : '<div class="c4-empty">No full-text matches found.</div>';
+  } else {
+    const listItemsHtml = state.results.length
+      ? state.results
+          .map(
+            (entry) => `
+            <button class="c4-result-row" data-select-result="${escapeHtml(entry.name)}" aria-current="${entry.name === state.selectedName}">
+              <span class="c4-result-name">${escapeHtml(entry.name)}</span>
+              ${entry.source_url ? `<span class="c4-list-item-sub">${escapeHtml(entry.source_url)}</span>` : ''}
+              <span class="c4-result-meta">
+                <span>${formatBytes(entry.size_bytes)}</span>
+                <span>${escapeHtml(formatDate(entry.modified))}</span>
+              </span>
+            </button>`,
+          )
+          .join('')
+      : `<div class="c4-empty">${state.searchQuery.trim() ? 'No results match your filter.' : 'No saved crawls yet. Use "New Crawl" to capture a site.'}</div>`;
 
-  const loadMoreHtml = state.hasMore
-    ? `<div style="padding:8px 0 2px; text-align:center">
-        <button class="c4-btn c4-btn--sm" data-action="load-more" ${state.loadingMore ? 'disabled' : ''}>
-          ${state.loadingMore ? 'Loading…' : `Load more (${filtered.length} / ${state.totalResults})`}
-        </button>
-      </div>`
-    : '';
-
-  const listHtml = listItemsHtml + loadMoreHtml;
+    const loadMoreHtml = state.hasMore
+      ? `<div style="padding:8px 0 2px; text-align:center">
+          <button class="c4-btn c4-btn--sm" data-action="load-more" ${state.loadingMore ? 'disabled' : ''}>
+            ${state.loadingMore ? 'Loading…' : `Load more (${state.results.length} / ${state.totalResults})`}
+          </button>
+        </div>`
+      : '';
+    listHtml = listItemsHtml + loadMoreHtml;
+  }
 
   const selectedEntry = state.results.find((r) => r.name === state.selectedName) ?? null;
   let detailHtml = '<div class="c4-empty">Select a saved crawl result to inspect it.</div>';
@@ -295,37 +400,75 @@ function renderResultsTab(canMessage: boolean, canUpdateContext: boolean, canOpe
     detailHtml = `<div class="c4-error-banner">${escapeHtml(state.docError)}</div>`;
   } else if (state.selectedDoc) {
     const doc = state.selectedDoc;
-    const sourceUrl = selectedEntry?.source_url ?? null;
-    const safeUrl = sourceUrl && isSafeHttpUrl(sourceUrl) ? sourceUrl : null;
+    const page = activePageSection();
+    const displayUrl = page?.url ?? selectedEntry?.source_url ?? state.docSections[0]?.url ?? null;
+    const safeUrl = displayUrl && isSafeHttpUrl(displayUrl) ? displayUrl : null;
+    const displayedMarkdown = page ? page.content : doc.content;
+
+    const pageBarHtml =
+      state.docSections.length > 1
+        ? `<div class="c4-page-bar">
+            <label for="page-select" style="font-size:11px; color:var(--color-text-secondary)">Pages (${state.docSections.length})</label>
+            <select id="page-select" class="c4-select">
+              <option value="-1" ${state.selectedPageIndex === -1 ? 'selected' : ''}>All pages (${state.docSections.length})</option>
+              ${state.docSections
+                .map(
+                  (sec) =>
+                    `<option value="${sec.index}" ${state.selectedPageIndex === sec.index ? 'selected' : ''}>${sec.index + 1}. ${escapeHtml(sec.title)}${sec.url ? ` — ${escapeHtml(sec.url)}` : ''}</option>`,
+                )
+                .join('')}
+            </select>
+          </div>`
+        : '';
+
+    const metaRowHtml =
+      page && (page.depth || page.timestamp)
+        ? `<div class="c4-meta-row">
+            ${page.depth ? `<span>Depth: ${escapeHtml(page.depth)}</span>` : ''}
+            ${page.timestamp ? `<span>Captured: ${escapeHtml(formatDate(page.timestamp))}</span>` : ''}
+          </div>`
+        : '';
+
     detailHtml = `
       <div class="c4-header">
         <div style="min-width:0; flex:1">
-          <div class="c4-title">${escapeHtml(doc.name)}</div>
+          <div class="c4-title">${escapeHtml(page ? page.title : doc.name)}</div>
           ${
             safeUrl && canOpenLinks
-              ? `<a class="c4-url" href="${escapeHtml(safeUrl)}" data-external-link="${escapeHtml(safeUrl)}">${escapeHtml(sourceUrl!)}</a>`
-              : sourceUrl
-                ? `<span class="c4-url">${escapeHtml(sourceUrl)}</span>`
+              ? `<a class="c4-url" href="${escapeHtml(safeUrl)}" data-external-link="${escapeHtml(safeUrl)}">${escapeHtml(displayUrl!)}</a>`
+              : displayUrl
+                ? `<span class="c4-url">${escapeHtml(displayUrl)}</span>`
                 : ''
           }
+          ${metaRowHtml}
         </div>
-        <span class="c4-badge">${formatBytes(doc.size_bytes)}</span>
+        <span class="c4-badge">${formatBytes(page ? new TextEncoder().encode(page.rawSection).length : doc.size_bytes)}</span>
       </div>
+      ${pageBarHtml}
       <div class="c4-toolbar">
         <div class="c4-actions">
           <button class="c4-btn c4-btn--sm" data-action="doc-rendered" ${state.renderMode === 'rendered' ? 'disabled' : ''}>Rendered</button>
           <button class="c4-btn c4-btn--sm" data-action="doc-raw" ${state.renderMode === 'raw' ? 'disabled' : ''}>Raw</button>
-          <button class="c4-btn c4-btn--sm" data-action="doc-copy">Copy</button>
-          ${canUpdateContext ? '<button class="c4-btn c4-btn--sm" data-action="doc-attach">Attach to chat</button>' : ''}
-          ${canMessage ? '<button class="c4-btn c4-btn--sm c4-btn--primary" data-action="doc-summarize">Summarize in chat</button>' : ''}
+          <button class="c4-btn c4-btn--sm" data-action="doc-copy">${page ? 'Copy page' : 'Copy'}</button>
+          ${
+            canUpdateContext
+              ? `<button class="c4-btn c4-btn--sm" data-action="doc-attach">${page ? 'Attach this page' : 'Attach to chat'}</button>`
+              : ''
+          }
+          ${
+            canMessage
+              ? '<button class="c4-btn c4-btn--sm c4-btn--primary" data-action="doc-summarize">Summarize in chat</button>'
+              : ''
+          }
+          ${safeUrl ? `<button class="c4-btn c4-btn--sm" data-recrawl-url="${escapeHtml(safeUrl)}">Re-crawl</button>` : ''}
           ${doc.file_uri ? '<button class="c4-btn c4-btn--sm" data-action="doc-open-file">Open .md</button>' : ''}
         </div>
       </div>
       <div class="c4-pane-scroll">
         ${
           state.renderMode === 'rendered'
-            ? `<div class="c4-markdown">${renderSafeMarkdown(doc.content)}</div>`
-            : `<pre class="c4-raw">${escapeHtml(doc.content)}</pre>`
+            ? `<div class="c4-markdown">${renderSafeMarkdown(displayedMarkdown)}</div>`
+            : `<pre class="c4-raw">${escapeHtml(displayedMarkdown)}</pre>`
         }
       </div>`;
   }
@@ -333,7 +476,13 @@ function renderResultsTab(canMessage: boolean, canUpdateContext: boolean, canOpe
   return `
     <div class="c4-split">
       <section class="c4-pane">
-        <input id="results-search" class="c4-input" type="search" placeholder="Search saved crawls…" value="${escapeHtml(state.searchQuery)}" />
+        <div class="c4-search-bar">
+          <input id="results-search" class="c4-input" type="search" placeholder="${state.searchMode === 'fulltext' ? 'Full-text search inside files…' : 'Filter by filename or URL…'}" value="${escapeHtml(state.searchQuery)}" />
+        </div>
+        <div class="c4-actions">
+          <button class="c4-btn c4-btn--sm ${state.searchMode === 'meta' ? 'c4-btn--primary' : ''}" data-search-mode="meta">Name / URL</button>
+          <button class="c4-btn c4-btn--sm ${state.searchMode === 'fulltext' ? 'c4-btn--primary' : ''}" data-search-mode="fulltext">Full text</button>
+        </div>
         <div class="c4-pane-scroll">${listHtml}</div>
       </section>
       <section class="c4-pane">
@@ -383,6 +532,16 @@ function renderCrawlTab(): string {
                 <div class="c4-field">
                   <label for="f-output">Output filename (optional)</label>
                   <input id="f-output" class="c4-input" type="text" placeholder="my_docs.md" value="${escapeHtml(state.formOutputFile)}" />
+                </div>
+              </div>
+              <div class="c4-form-grid">
+                <div class="c4-field">
+                  <label for="f-include">Include URL patterns (comma-separated)</label>
+                  <input id="f-include" class="c4-input" type="text" placeholder="/docs/*, */api/*" value="${escapeHtml(state.formIncludePatterns)}" />
+                </div>
+                <div class="c4-field">
+                  <label for="f-exclude">Exclude URL patterns (comma-separated)</label>
+                  <input id="f-exclude" class="c4-input" type="text" placeholder="/blog/*, *.pdf" value="${escapeHtml(state.formExcludePatterns)}" />
                 </div>
               </div>`
             : ''
@@ -517,7 +676,15 @@ function render(): void {
       window.clearTimeout(searchTimer);
       searchTimer = window.setTimeout(() => {
         void refreshListing(undefined, true);
-      }, 200);
+      }, 220);
+    });
+  }
+
+  const pageSelect = document.getElementById('page-select') as HTMLSelectElement | null;
+  if (pageSelect) {
+    pageSelect.addEventListener('change', () => {
+      state.selectedPageIndex = Number(pageSelect.value);
+      render();
     });
   }
 
@@ -534,6 +701,10 @@ function render(): void {
       if (pagesEl) state.formMaxPages = Number(pagesEl.value) || 1;
       const outEl = document.getElementById('f-output') as HTMLInputElement | null;
       if (outEl) state.formOutputFile = outEl.value;
+      const incEl = document.getElementById('f-include') as HTMLInputElement | null;
+      if (incEl) state.formIncludePatterns = incEl.value;
+      const excEl = document.getElementById('f-exclude') as HTMLInputElement | null;
+      if (excEl) state.formExcludePatterns = excEl.value;
       const extEl = document.getElementById('f-external') as HTMLInputElement | null;
       if (extEl) state.formIncludeExternal = extEl.checked;
       const ovEl = document.getElementById('f-overwrite') as HTMLInputElement | null;
@@ -551,13 +722,23 @@ function render(): void {
 
 root.addEventListener('click', (event) => {
   const target = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-    '[data-tab], [data-action], [data-select-result], [data-crawl-mode], [data-close-session], [data-open-saved]',
+    '[data-tab], [data-action], [data-select-result], [data-crawl-mode], [data-close-session], [data-open-saved], [data-search-mode], [data-recrawl-url]',
   );
   if (!target) return;
 
   if (target.dataset.tab) {
     state.activeTab = target.dataset.tab as ExplorerState['activeTab'];
     render();
+    return;
+  }
+
+  if (target.dataset.searchMode) {
+    const nextMode = target.dataset.searchMode as ExplorerState['searchMode'];
+    if (nextMode !== state.searchMode) {
+      state.searchMode = nextMode;
+      render();
+      void refreshListing(undefined, true);
+    }
     return;
   }
 
@@ -583,6 +764,14 @@ root.addEventListener('click', (event) => {
     return;
   }
 
+  if (target.dataset.recrawlUrl) {
+    state.formUrl = target.dataset.recrawlUrl;
+    state.crawlMode = 'crawl_page';
+    state.activeTab = 'crawl';
+    render();
+    return;
+  }
+
   const action = target.dataset.action;
   if (action === 'refresh') {
     void refreshListing();
@@ -595,39 +784,45 @@ root.addEventListener('click', (event) => {
     state.renderMode = 'raw';
     render();
   } else if (action === 'doc-copy' && state.selectedDoc) {
-    void copyToClipboard(state.selectedDoc.content).then((ok) =>
-      flashStatus(ok ? 'Copied!' : 'Clipboard unavailable'),
-    );
+    const page = activePageSection();
+    const text = page ? page.rawSection : state.selectedDoc.content;
+    void copyToClipboard(text).then((ok) => flashStatus(ok ? 'Copied!' : 'Clipboard unavailable'));
   } else if (action === 'doc-attach' && state.selectedDoc) {
     const doc = state.selectedDoc;
-    void app
-      .updateModelContext({
-        content: [
+    const page = activePageSection();
+    const content = page
+      ? [
           {
-            type: 'resource_link',
+            type: 'text' as const,
+            text: `Page "${page.title}"${page.url ? ` (${page.url})` : ''} from ${doc.name}:\n\n${page.rawSection}`,
+          },
+        ]
+      : [
+          {
+            type: 'resource_link' as const,
             uri: doc.uri,
             name: doc.name,
             mimeType: 'text/markdown',
           },
           {
-            type: 'text',
+            type: 'text' as const,
             text: `Saved crawl result "${doc.name}" (${formatBytes(doc.size_bytes)}).`,
           },
-        ],
-      })
-      .then(() => flashStatus('Attached to next message'))
+        ];
+    void app
+      .updateModelContext({ content })
+      .then(() => flashStatus(page ? 'Page attached to next message' : 'Attached to next message'))
       .catch(() => flashStatus('Attach unavailable'));
   } else if (action === 'doc-summarize' && state.selectedDoc) {
     const doc = state.selectedDoc;
+    const page = activePageSection();
+    const prompt = page
+      ? `Summarize the page "${page.title}" (${page.url ?? doc.name}) from ${doc.uri}.`
+      : `Read the crawl result resource ${doc.uri} and summarize its main sections and key takeaways.`;
     void app
       .sendMessage({
         role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: `Read the crawl result resource ${doc.uri} and summarize its main sections and key takeaways.`,
-          },
-        ],
+        content: [{ type: 'text', text: prompt }],
       })
       .then((res) => flashStatus(res.isError ? 'Message rejected' : 'Sent to chat'))
       .catch(() => flashStatus('Message unavailable'));

@@ -262,6 +262,7 @@ async def test_result_resources_through_mcp(saved_results):
         "crawl://results",
         "ui://crawl4ai/crawl-card.html",
         "ui://crawl4ai/explorer.html",
+        "ui://crawl4ai/file-viewer.html",
     ]
 
     listing = list(await app.read_resource("crawl://results"))

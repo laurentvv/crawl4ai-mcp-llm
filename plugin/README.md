@@ -3,7 +3,8 @@
 This directory packages [`crawl4ai-mcp-llm`](https://github.com/laurentvv/crawl4ai-mcp-llm) as an Antigravity plugin with interactive MCP Apps:
 
 - **Inline Crawl Card** (`crawl`, `crawl_page`): displays crawl status, page/error counters, rendered or raw Markdown preview, filterable links, skipped pages, and quick actions (copy, attach to next message, open saved `.md` file in the side panel).
-- **Crawl4AI Explorer** (`open_crawl_explorer`, `aux_pane` + `global` entrypoints): browse and search saved Markdown results, run new single-page or deep crawls directly from the UI, and close active browser sessions.
+- **Crawl4AI Explorer** (`open_crawl_explorer`, `aux_pane` + `global` entrypoints): browse and search saved Markdown results (by filename/URL or full text), inspect individual crawled pages, run new single-page or deep crawls with URL include/exclude patterns, and close active browser sessions.
+- **Crawl4AI File Viewer** (`view_crawl_file`, `file` entrypoint for `.crawlmd` / `.crawl.md`): opens exported crawl files with a per-page table of contents, metadata, and one-click re-crawl.
 
 ## Prerequisites
 

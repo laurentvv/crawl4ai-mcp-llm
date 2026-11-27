@@ -1,5 +1,4 @@
 import re
-import sys
 import urllib.parse
 import uuid
 from datetime import datetime
@@ -22,6 +21,8 @@ UNICODE_REPLACEMENTS = {
     "…": "...",  # Ellipsis … becomes ...
     " ": " ",  # Non-breaking space   becomes normal space
 }
+_UNICODE_TRANSLATION = str.maketrans(UNICODE_REPLACEMENTS)
+_NON_ASCII_REGEX = re.compile(r"[^\x00-\x7F]+")
 
 
 def sanitize_for_display(text: object) -> str:
@@ -41,19 +42,9 @@ def sanitize_for_display(text: object) -> str:
     if text.isascii():
         return text
 
-    try:
-        # Test if the text can be encoded in the default system encoding
-        text.encode(sys.getdefaultencoding())
-    except UnicodeEncodeError:
-        # If it can't, replace problematic characters
-        for char, replacement in UNICODE_REPLACEMENTS.items():
-            if char in text:
-                text = text.replace(char, replacement)
-
-        # Eliminate all other non-ASCII characters that might cause problems
-        if not text.isascii():
-            text = re.sub(r"[^\x00-\x7F]+", " ", text)
-
+    text = text.translate(_UNICODE_TRANSLATION)
+    if not text.isascii():
+        text = _NON_ASCII_REGEX.sub(" ", text)
     return text
 
 

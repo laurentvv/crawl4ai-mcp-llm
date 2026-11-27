@@ -27,6 +27,7 @@ from .results import (
     read_result,
     result_file_uri,
     result_uri,
+    search_results,
 )
 from .ui import (
     APP_ONLY_META,
@@ -36,6 +37,9 @@ from .ui import (
     EXPLORER_FILENAME,
     EXPLORER_META,
     EXPLORER_URI,
+    FILE_VIEWER_FILENAME,
+    FILE_VIEWER_META,
+    FILE_VIEWER_URI,
     MAX_EXPLORER_INITIAL_RESULTS,
     MAX_RESULTS_PAGE_LIMIT,
     UI_MIME_TYPE,
@@ -219,6 +223,14 @@ async def crawl(
     delay_before_return_html: Annotated[
         float | None, Field(ge=0, le=60, description="Seconds to wait before capturing the HTML")
     ] = None,
+    include_patterns: Annotated[
+        list[str] | None,
+        Field(description="Only follow URLs matching at least one glob pattern (e.g. ['/docs/*', '*/api/*'])"),
+    ] = None,
+    exclude_patterns: Annotated[
+        list[str] | None,
+        Field(description="Skip URLs matching any glob pattern (e.g. ['/blog/*', '*.pdf']); wins over include"),
+    ] = None,
 ) -> CallToolResult:
     """Crawls a website and saves its content as structured Markdown to a file.
 
@@ -258,6 +270,8 @@ async def crawl(
         js_code=js_code,
         session_id=session_id,
         delay_before_return_html=delay_before_return_html,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
         overwrite=overwrite,
         max_content_chars=max_content_chars,
         crawler_manager=_manager(ctx),
@@ -267,9 +281,10 @@ async def crawl(
     if result["error"]:
         raise ToolError(sanitize_for_display(result["error"]))
 
+    resolved_url = result.get("url") or url
     results_dir = get_settings().results_dir
-    summary = format_crawl_summary(url, result, return_content, results_dir)
-    structured = build_crawl_structured_content("crawl", url, result, results_dir)
+    summary = format_crawl_summary(resolved_url, result, return_content, results_dir)
+    structured = build_crawl_structured_content("crawl", resolved_url, result, results_dir)
     return CallToolResult(content=[TextContent(type="text", text=summary)], structured_content=structured)
 
 
@@ -327,8 +342,9 @@ async def crawl_page(
         reasons = "; ".join(page["reason"] for page in result.get("skipped") or []) or "no content"
         raise ToolError(sanitize_for_display(f"Could not extract {url}: {reasons}"))
 
-    text = f"## Page fetched\n- URL: {url}\n{_content_section(result)}"
-    structured = build_crawl_structured_content("crawl_page", url, result)
+    resolved_url = result.get("url") or url
+    text = f"## Page fetched\n- URL: {resolved_url}\n{_content_section(result)}"
+    structured = build_crawl_structured_content("crawl_page", resolved_url, result)
     return CallToolResult(content=[TextContent(type="text", text=text)], structured_content=structured)
 
 
@@ -494,6 +510,60 @@ async def app_read_result(
     )
 
 
+@app.tool(
+    annotations=ToolAnnotations(
+        title="Search saved crawl results (App helper)",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+    meta=APP_ONLY_META,
+)
+async def app_search_results(
+    query: Annotated[str, Field(description="Case-insensitive text to search inside saved Markdown crawl results")],
+    limit: Annotated[int, Field(ge=1, le=200, description="Maximum number of matching files to return")] = 50,
+) -> CallToolResult:
+    """App-only helper running full-text search across saved crawl Markdown files."""
+    cleaned = query.strip()
+    matches = await search_results(cleaned, get_settings().results_dir, max_results=limit) if cleaned else []
+    payload: dict[str, Any] = {
+        "query": cleaned,
+        "matches": matches,
+        "total_matches": len(matches),
+    }
+    return CallToolResult(
+        content=[TextContent(type="text", text=json.dumps(payload, indent=2))],
+        structured_content=payload,
+    )
+
+
+@app.tool(
+    title="Crawl4AI Viewer",
+    annotations=ToolAnnotations(
+        title="View Crawl4AI export file",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+    meta=FILE_VIEWER_META,
+)
+async def view_crawl_file(
+    file: Annotated[
+        dict[str, Any] | None,
+        Field(description="Opaque Antigravity file descriptor ({name, resourceUri}) passed by the host"),
+    ] = None,
+) -> CallToolResult:
+    """Host-invoked custom file viewer for Crawl4AI Markdown exports (.crawlmd / .crawl.md)."""
+    file_info = file if isinstance(file, dict) else {}
+    name = str(file_info.get("name") or "crawl.md")
+    return CallToolResult(
+        content=[TextContent(type="text", text=f"Opening Crawl4AI file viewer for {name}.")],
+        structured_content={"kind": "file_viewer", "file": file_info},
+    )
+
+
 @app.resource(
     RESULTS_URI,
     name="crawl-results",
@@ -548,5 +618,20 @@ async def crawl_card_app_html() -> str:
 async def crawl_explorer_app_html() -> str:
     try:
         return load_ui_html(EXPLORER_FILENAME, get_settings().ui_dir)
+    except FileNotFoundError as e:
+        raise ResourceError(str(e)) from e
+
+
+@app.resource(
+    FILE_VIEWER_URI,
+    name="crawl-file-viewer-app",
+    title="Crawl4AI File Viewer",
+    description="Interactive custom file viewer for Crawl4AI Markdown exports (.crawlmd / .crawl.md).",
+    mime_type=UI_MIME_TYPE,
+    meta=UI_RESOURCE_META,
+)
+async def crawl_file_viewer_app_html() -> str:
+    try:
+        return load_ui_html(FILE_VIEWER_FILENAME, get_settings().ui_dir)
     except FileNotFoundError as e:
         raise ResourceError(str(e)) from e

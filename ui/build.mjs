@@ -6,7 +6,7 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 const outDir = resolve(rootDir, '../src/crawl4ai_mcp_llm/ui_assets');
 
-const entries = ['crawl-card.html', 'explorer.html'];
+const entries = ['crawl-card.html', 'explorer.html', 'file-viewer.html'];
 
 for (const [index, entry] of entries.entries()) {
   await build({

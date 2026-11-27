@@ -12,6 +12,7 @@ from crawl4ai_mcp_llm.ui import (
     CRAWL_CARD_FILENAME,
     CRAWL_CARD_URI,
     EXPLORER_URI,
+    FILE_VIEWER_URI,
     MAX_STRUCTURED_PREVIEW_CHARS,
     UI_MIME_TYPE,
     build_crawl_structured_content,
@@ -34,8 +35,21 @@ async def test_tools_expose_mcp_app_metadata():
             ]
         },
     }
+    assert tools["view_crawl_file"].meta == {
+        "ui": {"resourceUri": FILE_VIEWER_URI},
+        "com.google.antigravity/ui": {
+            "entrypoints": [
+                {
+                    "type": "file",
+                    "title": "Crawl4AI Viewer",
+                    "extensions": [".crawlmd", ".crawl.md"],
+                }
+            ]
+        },
+    }
     assert tools["app_list_results"].meta == {"ui": {"visibility": ["app"]}}
     assert tools["app_read_result"].meta == {"ui": {"visibility": ["app"]}}
+    assert tools["app_search_results"].meta == {"ui": {"visibility": ["app"]}}
     assert tools["close_session"].meta is None
 
 
@@ -43,7 +57,7 @@ async def test_tools_expose_mcp_app_metadata():
 async def test_ui_resources_return_bundled_singlefile_html():
     resources = {str(r.uri): r for r in await app.list_resources()}
 
-    for uri in (CRAWL_CARD_URI, EXPLORER_URI):
+    for uri in (CRAWL_CARD_URI, EXPLORER_URI, FILE_VIEWER_URI):
         assert uri in resources
         assert resources[uri].mime_type == UI_MIME_TYPE
         assert resources[uri].meta == {"ui": {"prefersBorder": False}}
@@ -234,3 +248,124 @@ async def test_explorer_and_app_list_results_paginate_and_filter(monkeypatch, re
     assert filtered.structured_content["total_results"] == 2
     assert filtered.structured_content["total_all"] == 3
     assert filtered.structured_content["has_more"] is False
+
+
+@pytest.mark.anyio
+async def test_list_results_cache_refreshes_on_file_update(results_dir):
+    from crawl4ai_mcp_llm.results import list_results
+
+    results_dir.mkdir(parents=True, exist_ok=True)
+    target = results_dir / "cached.md"
+    target.write_text("# V1\n\n## URL\nhttps://v1.example/\n", encoding="utf-8")
+
+    first = await list_results(results_dir)
+    assert first[0]["source_url"] == "https://v1.example/"
+
+    target.write_text("# V2 longer content\n\n## URL\nhttps://v2.example/new\n", encoding="utf-8")
+    second = await list_results(results_dir)
+    assert second[0]["source_url"] == "https://v2.example/new"
+
+
+@pytest.mark.anyio
+async def test_bare_domain_is_normalized_in_structured_content(monkeypatch, fake_crawler):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(server, "crawler_manager", CrawlerManager())
+    fake_crawler.results = [
+        SimpleNamespace(url="https://example.com", markdown="# Hi", metadata={"title": "Hi", "depth": 0}, links={})
+    ]
+
+    res = await app.call_tool("crawl_page", {"url": "example.com"})
+    assert res.structured_content["url"] == "https://example.com"
+    assert "- URL: https://example.com" in res.content[0].text
+
+
+def test_sanitize_for_display_and_blank_ui_dir(monkeypatch):
+    from crawl4ai_mcp_llm.config import get_settings
+    from crawl4ai_mcp_llm.utils import sanitize_for_display
+
+    assert sanitize_for_display(None) == ""
+    assert sanitize_for_display(404) == "404"
+    assert sanitize_for_display("plain ascii") == "plain ascii"
+    assert sanitize_for_display("a → b — “quote” … café") == 'a -> b -- "quote" ... caf '
+
+    monkeypatch.setenv("CRAWL4AI_MCP_UI_DIR", "   ")
+    assert get_settings().ui_dir is None
+
+
+@pytest.mark.anyio
+async def test_app_search_results_full_text(results_dir):
+    results_dir.mkdir(parents=True, exist_ok=True)
+    (results_dir / "python.md").write_text(
+        "# Python Guide\n\n## URL\nhttps://docs.python.org/\n\n## Content\nAsyncIO and AnyIO tasks.\nAnyIO rocks.\n",
+        encoding="utf-8",
+    )
+    (results_dir / "other.md").write_text(
+        "# Other\n\n## URL\nhttps://other.example/\n\n## Content\nNothing relevant here.\n",
+        encoding="utf-8",
+    )
+
+    res = await app.call_tool("app_search_results", {"query": "anyio"})
+    assert res.is_error is False
+    assert res.structured_content["total_matches"] == 1
+    match = res.structured_content["matches"][0]
+    assert match["name"] == "python.md"
+    assert match["match_count"] == 2
+    assert match["line"] == 7
+    assert "AnyIO" in match["snippet"]
+
+    empty = await app.call_tool("app_search_results", {"query": "   "})
+    assert empty.structured_content["matches"] == []
+
+
+@pytest.mark.anyio
+async def test_view_crawl_file_tool():
+    descriptor = {"name": "docs.crawl.md", "resourceUri": "antigravity-file://uuid-123/docs.crawl.md"}
+    res = await app.call_tool("view_crawl_file", {"file": descriptor})
+    assert res.is_error is False
+    assert "docs.crawl.md" in res.content[0].text
+    assert res.structured_content == {"kind": "file_viewer", "file": descriptor}
+
+
+def test_pattern_url_filter_and_validation():
+    from crawl4ai_mcp_llm.security import PatternURLFilter, ValidationError, validate_url_patterns
+
+    flt = PatternURLFilter(
+        include_patterns=["/docs/**", "*/api/*"],
+        exclude_patterns=["/docs/legacy/*", "*.pdf"],
+        start_url="https://site.example/",
+    )
+
+    assert flt.apply("https://site.example/") is True  # start_url always kept
+    assert flt.apply("https://site.example/docs/intro") is True
+    assert flt.apply("https://site.example/v2/api/users") is True
+    assert flt.apply("https://site.example/blog/post-1") is False
+    assert flt.apply("https://site.example/docs/legacy/v0") is False  # exclude wins
+    assert flt.apply("https://site.example/docs/guide.pdf") is False  # exclude wins
+
+    assert validate_url_patterns(["  /docs/* ", ""], name="include_patterns") == ["/docs/*"]
+    with pytest.raises(ValidationError, match="exceeds"):
+        validate_url_patterns(["x" * 300], name="include_patterns")
+    with pytest.raises(ValidationError, match="at most"):
+        validate_url_patterns(["/a/*"] * 51, name="exclude_patterns")
+
+
+@pytest.mark.anyio
+async def test_crawl_wires_pattern_filters_into_filter_chain(fake_crawler, results_dir):
+    from crawl4ai_mcp_llm.crawler import crawl_and_output_to_markdown
+    from crawl4ai_mcp_llm.security import PatternURLFilter
+
+    res = await crawl_and_output_to_markdown(
+        "https://example.com/",
+        max_depth=1,
+        include_patterns=["/docs/*"],
+        exclude_patterns=["/docs/old/*"],
+        write_file=False,
+    )
+    assert res["error"] is None
+    ((_, config),) = fake_crawler.calls
+    filters = config.deep_crawl_strategy.filter_chain.filters
+    pattern_filters = [f for f in filters if isinstance(f, PatternURLFilter)]
+    assert len(pattern_filters) == 1
+    assert pattern_filters[0].include_patterns == ("/docs/*",)
+    assert pattern_filters[0].exclude_patterns == ("/docs/old/*",)
