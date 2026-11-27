@@ -25,6 +25,11 @@ A powerful web crawling tool that integrates with AI assistants via the MCP (Mod
   - **Crawl4AI Explorer** (`open_crawl_explorer`, side panel & full page): paginated saved-results browser, filename/URL & **full-text search**, **per-page TOC** (copy/attach a single crawled page), interactive crawl launcher, and session manager
   - **Custom File Viewer** (`view_crawl_file` for `.crawlmd` / `.crawl.md`): per-page TOC, metadata, and one-click live re-crawl
   - 100% backward-compatible plain-text responses for non-UI MCP clients
+
+<div align="center">
+  <img src="https://raw.githubusercontent.com/laurentvv/crawl4ai-mcp-llm/main/assets/mcp-apps-preview.png" alt="Crawl4AI MCP Apps in Antigravity: Inline Crawl Card and Crawl4AI Explorer side panel" width="900"/>
+</div>
+
 - Error and not found page handling
 - Secure by default: only public http(s) URLs, JavaScript disabled unless you opt in
 - **Advanced Scraping Capabilities**:
@@ -95,6 +100,15 @@ Add the following to your AI Assistant's MCP configuration file (e.g., `cline_mc
 
 ```bash
 claude mcp add crawl -s user -- uvx --python 3.13 crawl4ai-mcp-llm@latest
+```
+
+**Google Antigravity (with interactive MCP Apps):**
+
+Use the same `uvx` entry in `mcp_config.json`, or install the bundled plugin from this repository:
+
+```bash
+agy plugin validate ./plugin --strict
+agy plugin install ./plugin
 ```
 
 ### Important: Browser Installation
