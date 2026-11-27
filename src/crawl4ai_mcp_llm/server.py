@@ -9,7 +9,7 @@ from typing import Annotated, Any
 from mcp.server import MCPServer
 from mcp.server.mcpserver import Context
 from mcp.server.mcpserver.exceptions import ResourceError, ToolError
-from mcp.types import ToolAnnotations
+from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import Field
 
 from .config import ALLOW_JS_ENV, get_settings
@@ -20,7 +20,33 @@ from .crawler import (
     ProgressCallback,
     crawl_and_output_to_markdown,
 )
-from .results import RESULTS_URI, ResultNotFoundError, list_results, read_result, result_uri
+from .results import (
+    RESULTS_URI,
+    ResultNotFoundError,
+    list_results,
+    read_result,
+    result_file_uri,
+    result_uri,
+    search_results,
+)
+from .ui import (
+    APP_ONLY_META,
+    CRAWL_CARD_FILENAME,
+    CRAWL_CARD_META,
+    CRAWL_CARD_URI,
+    EXPLORER_FILENAME,
+    EXPLORER_META,
+    EXPLORER_URI,
+    FILE_VIEWER_FILENAME,
+    FILE_VIEWER_META,
+    FILE_VIEWER_URI,
+    MAX_EXPLORER_INITIAL_RESULTS,
+    MAX_RESULTS_PAGE_LIMIT,
+    UI_MIME_TYPE,
+    UI_RESOURCE_META,
+    build_crawl_structured_content,
+    load_ui_html,
+)
 from .utils import sanitize_for_display
 
 logger = logging.getLogger(__name__)
@@ -144,6 +170,19 @@ The full results are saved in: {file_path}
     return summary
 
 
+async def _serialized_results(results_dir: Path) -> list[dict[str, Any]]:
+    entries = await list_results(results_dir)
+    serialized: list[dict[str, Any]] = []
+    for entry in entries:
+        item: dict[str, Any] = dict(entry)
+        try:
+            item["file_uri"] = result_file_uri(entry["name"], results_dir)
+        except ResultNotFoundError:
+            item["file_uri"] = None
+        serialized.append(item)
+    return serialized
+
+
 @app.tool(
     annotations=ToolAnnotations(
         title="Crawl website",
@@ -151,7 +190,8 @@ The full results are saved in: {file_path}
         destructive_hint=False,
         idempotent_hint=False,
         open_world_hint=True,
-    )
+    ),
+    meta=CRAWL_CARD_META,
 )
 async def crawl(
     ctx: Context,
@@ -183,7 +223,15 @@ async def crawl(
     delay_before_return_html: Annotated[
         float | None, Field(ge=0, le=60, description="Seconds to wait before capturing the HTML")
     ] = None,
-) -> str:
+    include_patterns: Annotated[
+        list[str] | None,
+        Field(description="Only follow URLs matching at least one glob pattern (e.g. ['/docs/*', '*/api/*'])"),
+    ] = None,
+    exclude_patterns: Annotated[
+        list[str] | None,
+        Field(description="Skip URLs matching any glob pattern (e.g. ['/blog/*', '*.pdf']); wins over include"),
+    ] = None,
+) -> CallToolResult:
     """Crawls a website and saves its content as structured Markdown to a file.
 
     PERFORMANCE WARNING: this tool can take from 30 seconds to several minutes
@@ -222,6 +270,8 @@ async def crawl(
         js_code=js_code,
         session_id=session_id,
         delay_before_return_html=delay_before_return_html,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
         overwrite=overwrite,
         max_content_chars=max_content_chars,
         crawler_manager=_manager(ctx),
@@ -231,7 +281,11 @@ async def crawl(
     if result["error"]:
         raise ToolError(sanitize_for_display(result["error"]))
 
-    return format_crawl_summary(url, result, return_content, get_settings().results_dir)
+    resolved_url = result.get("url") or url
+    results_dir = get_settings().results_dir
+    summary = format_crawl_summary(resolved_url, result, return_content, results_dir)
+    structured = build_crawl_structured_content("crawl", resolved_url, result, results_dir)
+    return CallToolResult(content=[TextContent(type="text", text=summary)], structured_content=structured)
 
 
 @app.tool(
@@ -241,7 +295,8 @@ async def crawl(
         destructive_hint=False,
         idempotent_hint=True,
         open_world_hint=True,
-    )
+    ),
+    meta=CRAWL_CARD_META,
 )
 async def crawl_page(
     ctx: Context,
@@ -260,7 +315,7 @@ async def crawl_page(
     max_content_chars: Annotated[
         int, Field(ge=1_000, le=500_000, description="Maximum characters of content returned")
     ] = DEFAULT_MAX_CONTENT_CHARS,
-) -> str:
+) -> CallToolResult:
     """Fetches exactly one web page and returns its content as Markdown.
 
     Faster and simpler than `crawl`: no link is followed and nothing is saved
@@ -287,7 +342,10 @@ async def crawl_page(
         reasons = "; ".join(page["reason"] for page in result.get("skipped") or []) or "no content"
         raise ToolError(sanitize_for_display(f"Could not extract {url}: {reasons}"))
 
-    return f"## Page fetched\n- URL: {url}\n{_content_section(result)}"
+    resolved_url = result.get("url") or url
+    text = f"## Page fetched\n- URL: {resolved_url}\n{_content_section(result)}"
+    structured = build_crawl_structured_content("crawl_page", resolved_url, result)
+    return CallToolResult(content=[TextContent(type="text", text=text)], structured_content=structured)
 
 
 @app.tool(
@@ -313,6 +371,199 @@ async def close_session(
     return f"No open session named {session_id!r}."
 
 
+@app.tool(
+    title="Crawl4AI Explorer",
+    annotations=ToolAnnotations(
+        title="Open Crawl4AI Explorer",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+    meta=EXPLORER_META,
+)
+async def open_crawl_explorer(
+    ctx: Context,
+    selected_result: Annotated[
+        str | None, Field(description="Optional relative filename of a saved result to open")
+    ] = None,
+    initial_url: Annotated[str | None, Field(description="Optional URL to pre-fill in the crawl launcher")] = None,
+) -> CallToolResult:
+    """Opens the Crawl4AI Explorer UI (side panel or full page) to browse saved crawls, launch
+    new crawls, and manage browser sessions.
+
+    All parameters are optional so the view can also be launched manually with `{}`.
+    """
+    settings = get_settings()
+    entries = await _serialized_results(settings.results_dir)
+    sessions = _manager(ctx).sessions
+    total_results = len(entries)
+    page = entries[:MAX_EXPLORER_INITIAL_RESULTS]
+
+    lines = [
+        "## Crawl4AI Explorer",
+        f"- Saved results: {total_results}",
+        f"- Active browser sessions: {len(sessions)}",
+    ]
+    if entries:
+        lines.append("- Latest results: " + ", ".join(entry["name"] for entry in entries[:5]))
+
+    structured: dict[str, Any] = {
+        "kind": "explorer",
+        "results": page,
+        "total_results": total_results,
+        "offset": 0,
+        "limit": MAX_EXPLORER_INITIAL_RESULTS,
+        "has_more": total_results > len(page),
+        "sessions": sessions,
+        "selected_result": selected_result,
+        "initial_url": initial_url,
+        "allow_js": settings.allow_js,
+        "allow_private_networks": settings.allow_private_networks,
+    }
+    return CallToolResult(content=[TextContent(type="text", text="\n".join(lines))], structured_content=structured)
+
+
+@app.tool(
+    annotations=ToolAnnotations(
+        title="List saved crawl results (App helper)",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+    meta=APP_ONLY_META,
+)
+async def app_list_results(
+    ctx: Context,
+    query: Annotated[str | None, Field(description="Optional case-insensitive filter on name or source URL")] = None,
+    offset: Annotated[int, Field(ge=0, description="Pagination offset into the filtered result list")] = 0,
+    limit: Annotated[
+        int, Field(ge=1, le=MAX_RESULTS_PAGE_LIMIT, description="Maximum number of results to return")
+    ] = MAX_EXPLORER_INITIAL_RESULTS,
+) -> CallToolResult:
+    """App-only helper returning paginated saved crawl results and active browser sessions."""
+    settings = get_settings()
+    entries = await _serialized_results(settings.results_dir)
+    sessions = _manager(ctx).sessions
+    total_all = len(entries)
+
+    cleaned_query = (query or "").strip()
+    if cleaned_query:
+        needle = cleaned_query.lower()
+        filtered = [
+            entry
+            for entry in entries
+            if needle in str(entry.get("name", "")).lower() or needle in str(entry.get("source_url") or "").lower()
+        ]
+    else:
+        filtered = entries
+
+    page = filtered[offset : offset + limit]
+    payload: dict[str, Any] = {
+        "results": page,
+        "total_results": len(filtered),
+        "total_all": total_all,
+        "offset": offset,
+        "limit": limit,
+        "has_more": (offset + len(page)) < len(filtered),
+        "query": cleaned_query,
+        "sessions": sessions,
+    }
+    return CallToolResult(
+        content=[TextContent(type="text", text=json.dumps(payload, indent=2))],
+        structured_content=payload,
+    )
+
+
+@app.tool(
+    annotations=ToolAnnotations(
+        title="Read saved crawl result (App helper)",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+    meta=APP_ONLY_META,
+)
+async def app_read_result(
+    name: Annotated[str, Field(description="Relative path of the saved .md result inside the results directory")],
+) -> CallToolResult:
+    """App-only helper that loads the full Markdown of a saved crawl result on demand."""
+    results_dir = get_settings().results_dir
+    try:
+        content = await read_result(name, results_dir)
+        file_uri = result_file_uri(name, results_dir)
+    except ResultNotFoundError as e:
+        raise ToolError(sanitize_for_display(str(e))) from e
+
+    payload = {
+        "name": name,
+        "uri": f"{RESULTS_URI}/{name}",
+        "file_uri": file_uri,
+        "content": content,
+        "size_bytes": len(content.encode("utf-8")),
+    }
+    return CallToolResult(
+        content=[TextContent(type="text", text=content)],
+        structured_content=payload,
+    )
+
+
+@app.tool(
+    annotations=ToolAnnotations(
+        title="Search saved crawl results (App helper)",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+    meta=APP_ONLY_META,
+)
+async def app_search_results(
+    query: Annotated[str, Field(description="Case-insensitive text to search inside saved Markdown crawl results")],
+    limit: Annotated[int, Field(ge=1, le=200, description="Maximum number of matching files to return")] = 50,
+) -> CallToolResult:
+    """App-only helper running full-text search across saved crawl Markdown files."""
+    cleaned = query.strip()
+    matches = await search_results(cleaned, get_settings().results_dir, max_results=limit) if cleaned else []
+    payload: dict[str, Any] = {
+        "query": cleaned,
+        "matches": matches,
+        "total_matches": len(matches),
+    }
+    return CallToolResult(
+        content=[TextContent(type="text", text=json.dumps(payload, indent=2))],
+        structured_content=payload,
+    )
+
+
+@app.tool(
+    title="Crawl4AI Viewer",
+    annotations=ToolAnnotations(
+        title="View Crawl4AI export file",
+        read_only_hint=True,
+        destructive_hint=False,
+        idempotent_hint=True,
+        open_world_hint=False,
+    ),
+    meta=FILE_VIEWER_META,
+)
+async def view_crawl_file(
+    file: Annotated[
+        dict[str, Any] | None,
+        Field(description="Opaque Antigravity file descriptor ({name, resourceUri}) passed by the host"),
+    ] = None,
+) -> CallToolResult:
+    """Host-invoked custom file viewer for Crawl4AI Markdown exports (.crawlmd / .crawl.md)."""
+    file_info = file if isinstance(file, dict) else {}
+    name = str(file_info.get("name") or "crawl.md")
+    return CallToolResult(
+        content=[TextContent(type="text", text=f"Opening Crawl4AI file viewer for {name}.")],
+        structured_content={"kind": "file_viewer", "file": file_info},
+    )
+
+
 @app.resource(
     RESULTS_URI,
     name="crawl-results",
@@ -335,4 +586,52 @@ async def crawl_result(path: str) -> str:
     try:
         return await read_result(path, get_settings().results_dir)
     except ResultNotFoundError as e:
+        raise ResourceError(str(e)) from e
+
+
+@app.resource(
+    CRAWL_CARD_URI,
+    name="crawl-card-app",
+    title="Crawl4AI Result Card",
+    description="Interactive inline MCP App UI for crawl and crawl_page results.",
+    mime_type=UI_MIME_TYPE,
+    meta=UI_RESOURCE_META,
+)
+async def crawl_card_app_html() -> str:
+    try:
+        return load_ui_html(CRAWL_CARD_FILENAME, get_settings().ui_dir)
+    except FileNotFoundError as e:
+        raise ResourceError(str(e)) from e
+
+
+@app.resource(
+    EXPLORER_URI,
+    name="crawl-explorer-app",
+    title="Crawl4AI Explorer",
+    description=(
+        "Interactive side-panel and full-page MCP App UI for browsing saved crawls, "
+        "running crawls, and managing sessions."
+    ),
+    mime_type=UI_MIME_TYPE,
+    meta=UI_RESOURCE_META,
+)
+async def crawl_explorer_app_html() -> str:
+    try:
+        return load_ui_html(EXPLORER_FILENAME, get_settings().ui_dir)
+    except FileNotFoundError as e:
+        raise ResourceError(str(e)) from e
+
+
+@app.resource(
+    FILE_VIEWER_URI,
+    name="crawl-file-viewer-app",
+    title="Crawl4AI File Viewer",
+    description="Interactive custom file viewer for Crawl4AI Markdown exports (.crawlmd / .crawl.md).",
+    mime_type=UI_MIME_TYPE,
+    meta=UI_RESOURCE_META,
+)
+async def crawl_file_viewer_app_html() -> str:
+    try:
+        return load_ui_html(FILE_VIEWER_FILENAME, get_settings().ui_dir)
+    except FileNotFoundError as e:
         raise ResourceError(str(e)) from e

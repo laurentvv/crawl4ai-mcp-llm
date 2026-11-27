@@ -1,9 +1,11 @@
 """Input validation for crawl requests: URLs, output paths and wait conditions."""
 
+import fnmatch
 import ipaddress
 import os
 import re
 import socket
+from collections.abc import Sequence
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -11,6 +13,8 @@ import anyio
 from crawl4ai.deep_crawling.filters import URLFilter
 
 ALLOWED_SCHEMES = ("http", "https")
+MAX_URL_PATTERNS = 50
+MAX_URL_PATTERN_LENGTH = 256
 # Anything that crawl4ai would evaluate as JavaScript in `wait_for`.
 _JS_WAIT_FOR_REGEX = re.compile(r"^\s*(?:js:|\(|function\b|async\b)|=>", re.IGNORECASE)
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^\w.-]+")
@@ -113,6 +117,76 @@ class SafeURLFilter(URLFilter):
             return _is_public_ip(ipaddress.ip_address(hostname))
         except ValueError:
             return True
+
+
+def validate_url_patterns(patterns: Sequence[str] | None, *, name: str) -> list[str]:
+    """Validate and normalise glob URL filter patterns (bounded length and count)."""
+    if not patterns:
+        return []
+    cleaned: list[str] = []
+    for raw in patterns:
+        pattern = str(raw).strip()
+        if not pattern:
+            continue
+        if len(pattern) > MAX_URL_PATTERN_LENGTH:
+            raise ValidationError(f"{name} entry exceeds {MAX_URL_PATTERN_LENGTH} characters")
+        cleaned.append(pattern)
+    if len(cleaned) > MAX_URL_PATTERNS:
+        raise ValidationError(f"{name} accepts at most {MAX_URL_PATTERNS} patterns (got {len(cleaned)})")
+    return cleaned
+
+
+def _matches_url_pattern(url: str, pattern: str) -> bool:
+    """Match a glob pattern (supporting ``*`` and ``**``) against a URL or its path."""
+    norm_pattern = re.sub(r"\*{2,}", "*", pattern)
+    parts = urlsplit(url)
+    path = parts.path or "/"
+    path_with_query = f"{path}?{parts.query}" if parts.query else path
+    if norm_pattern.startswith("/"):
+        return fnmatch.fnmatchcase(path, norm_pattern) or fnmatch.fnmatchcase(path_with_query, norm_pattern)
+    no_scheme = f"{parts.netloc}{path_with_query}"
+    return (
+        fnmatch.fnmatchcase(url, norm_pattern)
+        or fnmatch.fnmatchcase(no_scheme, norm_pattern)
+        or fnmatch.fnmatchcase(path, norm_pattern)
+        or fnmatch.fnmatchcase(path_with_query, norm_pattern)
+    )
+
+
+class PatternURLFilter(URLFilter):
+    """Deep-crawl filter applying glob ``include_patterns`` and ``exclude_patterns``.
+
+    ``exclude_patterns`` always win over ``include_patterns``. The ``start_url``
+    is always allowed through so deep crawls can discover matching child links.
+    """
+
+    __slots__ = ("include_patterns", "exclude_patterns", "start_url")
+
+    def __init__(
+        self,
+        *,
+        include_patterns: Sequence[str] = (),
+        exclude_patterns: Sequence[str] = (),
+        start_url: str | None = None,
+    ):
+        super().__init__(name="PatternURLFilter")
+        self.include_patterns = tuple(include_patterns)
+        self.exclude_patterns = tuple(exclude_patterns)
+        self.start_url = start_url.rstrip("/") if start_url else None
+
+    def apply(self, url: str) -> bool:
+        passed = self._check(url)
+        self._update_stats(passed)
+        return passed
+
+    def _check(self, url: str) -> bool:
+        if self.start_url and url.rstrip("/") == self.start_url:
+            return True
+        if any(_matches_url_pattern(url, pat) for pat in self.exclude_patterns):
+            return False
+        if self.include_patterns:
+            return any(_matches_url_pattern(url, pat) for pat in self.include_patterns)
+        return True
 
 
 def validate_wait_for(wait_for: str | None, *, allow_js: bool) -> str | None:

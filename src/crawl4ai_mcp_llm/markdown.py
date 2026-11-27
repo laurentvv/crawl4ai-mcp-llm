@@ -2,7 +2,7 @@
 
 import re
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 # Pre-compiled UI artifact regex
 UI_ARTIFACTS_REGEX = re.compile(
@@ -78,7 +78,7 @@ def remove_links_from_markdown(markdown_text: str) -> str:
 def format_page(url: str, title: str, depth: object, text: str) -> str:
     """Format a single crawled page as a Markdown section."""
     clean_text = remove_links_from_markdown(text)
-    timestamp = datetime.now().isoformat()
+    timestamp = datetime.now(UTC).isoformat()
 
     return f"""
 # {title}

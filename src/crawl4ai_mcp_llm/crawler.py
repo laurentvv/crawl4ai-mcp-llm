@@ -19,10 +19,12 @@ from crawl4ai.deep_crawling.filters import FilterChain
 from .config import ALLOW_JS_ENV, Settings, get_settings
 from .markdown import format_page
 from .security import (
+    PatternURLFilter,
     SafeURLFilter,
     ValidationError,
     resolve_output_path,
     validate_url,
+    validate_url_patterns,
     validate_wait_for,
 )
 from .utils import generate_filename_from_url
@@ -75,6 +77,7 @@ class CrawlOutcome(TypedDict):
     error: str | None
     file_path: str | None
     stats: CrawlStats
+    url: NotRequired[str]
     links: NotRequired[dict[str, list[dict[str, Any]]]]
     skipped: NotRequired[list[SkippedPage]]
     content: NotRequired[str]
@@ -453,14 +456,17 @@ class CrawlerManager:
         await self.close()
 
     async def close(self) -> None:
-        self._sessions.clear()
-        crawler, self._crawler = self._crawler, None
-        if crawler is not None:
-            try:
-                with anyio.CancelScope(shield=True):
-                    await crawler.close()
-            except Exception:  # noqa: BLE001 - closing a broken browser must not mask the real error
-                logger.debug("Error while closing the crawler", exc_info=True)
+        if self._lock is None:
+            self._lock = anyio.Lock()
+        with anyio.CancelScope(shield=True):
+            async with self._lock:
+                self._sessions.clear()
+                crawler, self._crawler = self._crawler, None
+                if crawler is not None:
+                    try:
+                        await crawler.close()
+                    except Exception:  # noqa: BLE001 - closing a broken browser must not mask the real error
+                        logger.debug("Error while closing the crawler", exc_info=True)
 
 
 async def crawl_and_output_to_markdown(
@@ -476,6 +482,8 @@ async def crawl_and_output_to_markdown(
     js_code: str | None = None,
     session_id: str | None = None,
     delay_before_return_html: float | None = None,
+    include_patterns: list[str] | None = None,
+    exclude_patterns: list[str] | None = None,
     *,
     overwrite: bool = False,
     max_content_chars: int = DEFAULT_MAX_CONTENT_CHARS,
@@ -509,6 +517,8 @@ async def crawl_and_output_to_markdown(
             )
         wait_for = validate_wait_for(wait_for_selector, allow_js=settings.allow_js)
         start_url = await validate_url(start_url, allow_private_networks=settings.allow_private_networks)
+        validated_includes = validate_url_patterns(include_patterns, name="include_patterns")
+        validated_excludes = validate_url_patterns(exclude_patterns, name="exclude_patterns")
 
         if write_file:
             results_dir = settings.results_dir
@@ -530,9 +540,18 @@ async def crawl_and_output_to_markdown(
         # crawl4ai's streaming BFS stops *before* yielding the page that reaches
         # max_pages (max_pages=1 returns nothing): ask for one more, cap it ourselves.
         strategy_kwargs["max_pages"] = max_pages + 1
+    filters: list[Any] = [SafeURLFilter(settings.allow_private_networks)]
+    if validated_includes or validated_excludes:
+        filters.append(
+            PatternURLFilter(
+                include_patterns=validated_includes,
+                exclude_patterns=validated_excludes,
+                start_url=start_url,
+            )
+        )
     config = CrawlerRunConfig(
         deep_crawl_strategy=BFSDeepCrawlStrategy(
-            filter_chain=FilterChain([SafeURLFilter(settings.allow_private_networks)]),
+            filter_chain=FilterChain(filters),
             **strategy_kwargs,
         ),
         scraping_strategy=LXMLWebScrapingStrategy(),
@@ -615,4 +634,5 @@ class _CrawlRun:
             logger.warning(
                 "Crawl of %s stopped after %g seconds (partial results kept)", self.start_url, self.timeout_seconds
             )
+        outcome["url"] = self.start_url
         return outcome
